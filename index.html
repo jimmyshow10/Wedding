@@ -1156,7 +1156,7 @@ function callClaude(messages, systemPrompt, onChunk, onDone, onError){
   var key=getAnthKey();
   if(!key){onError("No Anthropic API key. Add it in Settings (gear icon).");return;}
   var body={
-    model:"claude-sonnet-4-20250514",
+    model:"claude-sonnet-4-5",
     max_tokens:1024,
     stream:true,
     tools:[{type:"web_search_20250305",name:"web_search"}],
@@ -1470,7 +1470,7 @@ function loadVenueData(venueName){
   fetchPlaceData(venueName,function(place){
     if(place&&place.photoUrls&&place.photoUrls.length)showPhotos(place.photoUrls);
     else document.getElementById("photo-carousel").innerHTML='<div class="ph-placeholder"><span>&#127968;</span><div>No photos found</div></div>';
-    renderReviews(place);
+    renderReviews(place, venueName);
   });
 }
 function showPhotos(urls){
@@ -1505,7 +1505,7 @@ function prevPhoto(){goPhoto(-1);}
 var REVIEW_PREVIEW_LEN = 200;
 var reviewFullTexts = {};
 
-function renderReviews(place){
+function renderReviews(place, venueName){
   var el=document.getElementById("v-rating-section");
   reviewFullTexts = {};
   if(!place){el.innerHTML='<div class="reviews-empty">No Google reviews found.</div>';return;}
@@ -1532,6 +1532,8 @@ function renderReviews(place){
       html+='</div>';
     });
     html+='</div>';
+    var mapsUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(venueName||'');
+    html+='<a href="'+mapsUrl+'" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:6px;margin-top:10px;padding:9px 12px;background:var(--bg2);border-radius:var(--radius);border:0.5px solid var(--border);text-decoration:none;font-size:12px;color:var(--blue);font-weight:500;">&#127758; See all reviews on Google Maps &#8599;</a>';
   } else if(!place.rating){
     html='<div class="reviews-empty">No Google reviews found for this venue.</div>';
   }
