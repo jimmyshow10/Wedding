@@ -1503,9 +1503,11 @@ function prevPhoto(){goPhoto(-1);}
 
 // ── REVIEWS (with expand) ────────────────────────────────────────────────────
 var REVIEW_PREVIEW_LEN = 200;
+var reviewFullTexts = {};
 
 function renderReviews(place){
   var el=document.getElementById("v-rating-section");
+  reviewFullTexts = {};
   if(!place){el.innerHTML='<div class="reviews-empty">No Google reviews found.</div>';return;}
   var html="";
   if(place.rating){
@@ -1515,6 +1517,7 @@ function renderReviews(place){
     html+='<div class="reviews-list" id="reviews-list-inner">';
     place.reviews.forEach(function(r,idx){
       if(!r.text)return;
+      reviewFullTexts[idx]=r.text;
       var init=r.author?r.author.charAt(0).toUpperCase():"G";
       var isLong=r.text.length>REVIEW_PREVIEW_LEN;
       var preview=isLong?r.text.slice(0,REVIEW_PREVIEW_LEN)+"...":r.text;
@@ -1524,7 +1527,7 @@ function renderReviews(place){
       html+='<div class="review-time">'+esc(r.time)+'</div></div>';
       html+='<div class="review-text" id="review-text-'+idx+'">'+esc(preview)+'</div>';
       if(isLong){
-        html+='<button class="review-expand" onclick="toggleReview('+idx+','+JSON.stringify(r.text)+')">Read more</button>';
+        html+='<button class="review-expand" data-idx="'+idx+'">Read more</button>';
       }
       html+='</div>';
     });
@@ -1533,21 +1536,20 @@ function renderReviews(place){
     html='<div class="reviews-empty">No Google reviews found for this venue.</div>';
   }
   el.innerHTML=html;
+  el.querySelectorAll('.review-expand').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var idx=parseInt(btn.getAttribute('data-idx'));
+      var textEl=document.getElementById('review-text-'+idx);
+      var fullText=reviewFullTexts[idx]||'';;
+      if(!textEl||!fullText)return;
+      var expanded=btn.textContent==='Show less';
+      if(expanded){textEl.textContent=fullText.slice(0,REVIEW_PREVIEW_LEN)+'...';btn.textContent='Read more';}
+      else{textEl.textContent=fullText;btn.textContent='Show less';}
+    });
+  });
 }
 
-function toggleReview(idx,fullText){
-  var textEl=document.getElementById("review-text-"+idx);
-  var btn=textEl.nextElementSibling;
-  if(!textEl||!btn)return;
-  var isExpanded=btn.textContent==="Show less";
-  if(isExpanded){
-    textEl.textContent=fullText.slice(0,REVIEW_PREVIEW_LEN)+"...";
-    btn.textContent="Read more";
-  } else {
-    textEl.textContent=fullText;
-    btn.textContent="Show less";
-  }
-}
+function toggleReview(){}
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
 function openSidebar(v,tab){
