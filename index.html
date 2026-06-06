@@ -964,12 +964,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <div class="v-name" id="v-name"></div>
           <div class="v-region" id="v-region"></div>
           <div class="stat-grid">
-            <div class="stat-c"><div class="stat-l">Capacity</div><div class="stat-v" id="v-cap"></div></div>
+            <div class="stat-c"><div class="stat-l">Sleeps</div><div class="stat-v" id="v-cap"></div></div>
             <div class="stat-c"><div class="stat-l">Per night</div><div class="stat-v" id="v-price-night"></div></div>
             <div class="stat-c"><div class="stat-l">Per guest</div><div class="stat-v" id="v-price-guest"></div></div>
             <div class="stat-c"><div class="stat-l">Airport</div><div class="stat-v" style="font-size:11px" id="v-airport"></div></div>
           </div>
-          <div id="research-bar" style="display:none;margin-bottom:6px;">
+          <div id="research-bar" style="margin-bottom:6px;">
             <button class="research-btn" id="research-btn" onclick="researchVenue()">
               &#128269; Research missing fields with Claude
             </button>
@@ -1057,7 +1057,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <label>Name *</label><input id="f-name" placeholder="Venue name"/>
     <label>Country</label><select id="f-country"><option value="FR">France</option><option value="IT">Italy</option></select>
     <label>Region / City</label><input id="f-region" placeholder="Provence, France"/>
-    <label>Capacity</label><input id="f-cap" placeholder="Up to 150 guests"/>
+    <label>Sleeping capacity</label><input id="f-cap" placeholder="Sleeps up to 30 guests"/>
     <label>Price per night (&#8364;)</label><input id="f-ppn" type="number" placeholder="4500"/>
     <label>Price per guest (&#8364;)</label><input id="f-ppg" type="number" placeholder="85"/>
     <label>Nearest airport</label><input id="f-airport" placeholder="Marseille (MRS) - 45 min"/>
@@ -1369,10 +1369,11 @@ function appendVChatMsg(role,text,venueId){
 function parseVenueUpdates(text, v){
   var updates={};
 
-  // Capacity
-  var capMatch=text.match(/(\d{2,4})\s*(?:guests?|people|persons?)/i);
-  if(!capMatch)capMatch=text.match(/(?:up to|maximum|max|holds?|accommodate)\s*(\d{2,4})/i);
-  if(capMatch){var cn=parseInt(capMatch[1]);if(cn>=20&&cn<=5000)updates.capacity="Up to "+cn+" guests";}
+  // Sleeping capacity - prioritise bedroom/sleep references over general guest count
+  var capMatch=text.match(/(?:sleeps?|sleeping|accommodates?|overnight|bedrooms?[^.]*sleep)[^0-9]*(\d{1,3})/i);
+  if(!capMatch)capMatch=text.match(/(\d{1,3})\s*(?:bedrooms?|suites?|rooms?)/i);
+  if(!capMatch)capMatch=text.match(/(?:sleeps?|can sleep|sleep up to)\s*(\d{1,3})/i);
+  if(capMatch){var cn=parseInt(capMatch[1]);if(cn>=2&&cn<=500)updates.capacity="Sleeps "+cn+" guests";}
 
   // Price per night - look for euro amounts near night/hire/venue/rental
   var pnMatch=text.match(/[€](\d[\d,]+)(?:\s*(?:per night|per evening|\/night|for the venue|venue hire|rental|buyout))/i);
@@ -1973,7 +1974,7 @@ function researchVenue(){
   var prompt='Research '+v.name+' wedding venue in '+v.region+'. '+
     'Find the following specific information: '+missing.join(', ')+'. '+
     'For each one, state the answer clearly with numbers. '+
-    'Format capacity as "accommodates up to X guests". '+
+    'Format sleeping capacity as "sleeps up to X guests" or "X bedrooms sleeping X people" - we want to know how many people can stay overnight, not wedding guest count. '+
     'Format venue pricing as "venue hire costs €X per night". '+
     'Format catering as "catering costs €X per guest". '+
     'Format airport as "nearest airport is NAME (CODE), approximately X min drive". '+
@@ -2008,29 +2009,18 @@ function researchVenue(){
 
 // Show/hide research button based on missing fields
 function updateResearchBar(v){
-  var hasAnthKey=getAnthKey()&&getAnthKey().length>0;
   var missing=[];
   if(!v.capacity||v.capacity==="")missing.push("capacity");
   if(!v.pricePerNight||v.pricePerNight===0)missing.push("price per night");
   if(!v.pricePerGuest||v.pricePerGuest===0)missing.push("price per guest");
   if(!v.airport||v.airport==="")missing.push("airport");
-  var bar=document.getElementById("research-bar");
+  var btn=document.getElementById("research-btn");
   var results=document.getElementById("research-results");
-  if(!bar)return;
-  // Show button if API key exists AND there are missing fields
-  // Also show if API key exists even if all filled - useful for refreshing info
-  if(hasAnthKey){
-    bar.style.display="block";
-    var btn=document.getElementById("research-btn");
-    if(btn){
-      if(missing.length>0){
-        btn.innerHTML="&#128269; Research "+missing.length+" missing field"+(missing.length!==1?"s":"")+" with Claude";
-      } else {
-        btn.innerHTML="&#128269; Re-research this venue with Claude";
-      }
-    }
-  } else {
-    bar.style.display="none";
+  if(btn){
+    btn.innerHTML=missing.length>0
+      ?"&#128269; Research "+missing.length+" missing field"+(missing.length!==1?"s":"")+" with Claude"
+      :"&#128269; Re-research this venue with Claude";
+    btn.disabled=false;
   }
   if(results)results.innerHTML="";
 }
