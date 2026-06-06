@@ -1381,10 +1381,12 @@ function parseVenueUpdates(text, v){
   if(!pnMatch)pnMatch=text.match(/€(\d[\d,]+)[^0-9]{0,30}(?:per night|night|venue)/i);
   if(pnMatch){var pa=parseInt(pnMatch[1].replace(/,/g,""));if(pa>500&&pa<500000)updates.pricePerNight=pa;}
 
-  // Price per guest
-  var pgMatch=text.match(/€(\d[\d,]+)\s*(?:per(?:\s+(?:head|guest|person|pp)))/i);
-  if(!pgMatch)pgMatch=text.match(/(?:per head|per guest|per person|catering)[^0-9€]{0,30}€?(\d[\d,]+)/i);
-  if(pgMatch){var ga=parseInt(pgMatch[1].replace(/,/g,""));if(ga>10&&ga<5000)updates.pricePerGuest=ga;}
+  // Price per guest - must be explicitly "per head/guest/person", capped at €500
+  // Avoid picking up total venue prices misidentified as per-person costs
+  var pgMatch=text.match(/€\s*(\d[\d,]+)\s*(?:per\s+(?:head|guest|person|pp)\b)/i);
+  if(!pgMatch)pgMatch=text.match(/(?:per\s+(?:head|guest|person)|per\s+pp)\b[^0-9€]{0,20}€?\s*(\d[\d,]+)/i);
+  if(!pgMatch)pgMatch=text.match(/(?:catering|food)[^.]{0,60}€\s*(\d{2,3})(?:\s*per\s+(?:head|person|guest))/i);
+  if(pgMatch){var ga=parseInt(pgMatch[1].replace(/,/g,""));if(ga>=20&&ga<=500)updates.pricePerGuest=ga;}
 
   // Airport
   var apMatch=text.match(/([A-Za-z][A-Za-z ]{3,25}(?:Airport)?)[^(]*(\([A-Z]{3}\))[^0-9]*(\d+\s*(?:min|hr|hour)[a-z]*)/i);
@@ -1980,31 +1982,72 @@ function researchVenue(){
     'Format airport as "nearest airport is NAME (CODE), approximately X min drive". '+
     'Be concise and factual. Use web search to find current information from their website or reputable wedding directories.';
 
-  callClaude(
-    [{role:'user',content:prompt}],
-    null,
-    function(){},
-    function(full,sources){
-      btn.disabled=false;
-      btn.innerHTML='&#128269; Research missing fields with Claude';
-      // Show result in the info tab directly
-      var updates=parseVenueUpdates(full,v);
-      var wrap=document.createElement('div');
-      wrap.style.cssText='background:var(--bg2);border-radius:var(--radius);border:0.5px solid var(--border);padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.55;margin-bottom:8px;';
-      wrap.textContent=full;
-      resultsEl.appendChild(wrap);
-      renderUpdateButtons(updates,selectedId,resultsEl,sources||[]);
-      // Auto-switch focus stays on info tab -- no tab switch needed
+  // Use non-streaming fetch so we can extract citation URLs reliably
+  var anthKey=getAnthKey();
+  fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "x-api-key":anthKey,
+      "anthropic-version":"2023-06-01",
+      "anthropic-dangerous-direct-browser-access":"true"
     },
-    function(err){
-      btn.disabled=false;
-      btn.innerHTML='&#128269; Research missing fields with Claude';
-      var errEl=document.createElement('div');
-      errEl.style.cssText='font-size:12px;color:#A32D2D;margin-top:6px;';
-      errEl.textContent='Error: '+String(err);
-      resultsEl.appendChild(errEl);
+    body:JSON.stringify({
+      model:"claude-sonnet-4-5",
+      max_tokens:800,
+      tools:[{type:"web_search_20250305",name:"web_search"}],
+      messages:[{role:"user",content:prompt}]
+    })
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    btn.disabled=false;
+    btn.innerHTML="&#128269; Research missing fields with Claude";
+    if(data.error)throw new Error(data.error.message||"API error");
+
+    // Extract text from content blocks
+    var full=(data.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("");
+
+    // Extract source URLs from web_search tool_result blocks
+    var sources=[];
+    (data.content||[]).forEach(function(block){
+      if(block.type==="tool_result"||block.type==="tool_use"){
+        try{
+          var results=typeof block.content==="string"?JSON.parse(block.content):block.content;
+          if(Array.isArray(results)){
+            results.forEach(function(r){
+              if(r.url&&sources.indexOf(r.url)<0)sources.push({url:r.url,title:r.title||r.url});
+            });
+          }
+        }catch(e){}
+      }
+    });
+
+    // Also check for citations in text (markdown links)
+    var linkPattern=/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g;
+    var match;
+    while((match=linkPattern.exec(full))!==null){
+      if(!sources.find(function(s){return s.url===match[2];})){
+        sources.push({url:match[2],title:match[1]});
+      }
     }
-  );
+
+    // Show result
+    var updates=parseVenueUpdates(full,v);
+    var wrap=document.createElement("div");
+    wrap.style.cssText="background:var(--bg2);border-radius:var(--radius);border:0.5px solid var(--border);padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.55;margin-bottom:8px;";
+    wrap.textContent=full;
+    resultsEl.appendChild(wrap);
+    renderUpdateButtons(updates,selectedId,resultsEl,sources);
+  })
+  .catch(function(err){
+    btn.disabled=false;
+    btn.innerHTML="&#128269; Research missing fields with Claude";
+    var errEl=document.createElement("div");
+    errEl.style.cssText="font-size:12px;color:#A32D2D;margin-top:6px;";
+    errEl.textContent="Error: "+String(err);
+    resultsEl.appendChild(errEl);
+  });
 }
 
 // Show/hide research button based on missing fields
