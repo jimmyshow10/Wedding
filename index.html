@@ -794,6 +794,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .review-text{font-size:12px;color:var(--text2);line-height:1.5;}
 .review-expand{font-size:11px;color:var(--purple);cursor:pointer;margin-top:4px;display:inline-block;background:none;border:none;padding:0;font-family:inherit;}
 .reviews-loading,.reviews-empty{font-size:12px;color:var(--text3);margin-top:8px;display:flex;align-items:center;gap:6px;}
+.research-btn{display:flex;align-items:center;gap:6px;padding:9px 12px;background:var(--green-light);border:0.5px solid #A8D47A;border-radius:var(--radius);color:#27500A;font-size:12px;font-weight:500;cursor:pointer;-webkit-appearance:none;width:100%;margin-top:10px;font-family:inherit;}
+.research-btn:hover{background:#d4edbe;}
+.research-btn:disabled{opacity:.6;cursor:not-allowed;}
+#research-results{margin-top:6px;}
 
 /* NOTES */
 .notes-wrap{padding:12px 14px;display:flex;flex-direction:column;gap:8px;flex:1;}
@@ -964,6 +968,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <div class="stat-c"><div class="stat-l">Per night</div><div class="stat-v" id="v-price-night"></div></div>
             <div class="stat-c"><div class="stat-l">Per guest</div><div class="stat-v" id="v-price-guest"></div></div>
             <div class="stat-c"><div class="stat-l">Airport</div><div class="stat-v" style="font-size:11px" id="v-airport"></div></div>
+          </div>
+          <div id="research-bar" style="display:none;margin-bottom:6px;">
+            <button class="research-btn" id="research-btn" onclick="researchVenue()">
+              &#128269; Research missing fields with Claude
+            </button>
+            <div id="research-results"></div>
           </div>
           <div class="sec">Amenities</div>
           <div class="amenity-wrap" id="v-amenities"></div>
@@ -1179,9 +1189,10 @@ function callClaude(messages, systemPrompt, onChunk, onDone, onError){
     var decoder=new TextDecoder();
     var buffer="";
     var fullText="";
+    var sources=[];
     function pump(){
       reader.read().then(function(result){
-        if(result.done){onDone(fullText);return;}
+        if(result.done){onDone(fullText,sources);return;}
         buffer+=decoder.decode(result.value,{stream:true});
         var lines=buffer.split("\n");
         buffer=lines.pop();
@@ -1194,6 +1205,19 @@ function callClaude(messages, systemPrompt, onChunk, onDone, onError){
               if(evt.type==="content_block_delta"&&evt.delta&&evt.delta.type==="text_delta"){
                 fullText+=evt.delta.text;
                 onChunk(evt.delta.text,fullText);
+              }
+              // Capture web search result URLs
+              if(evt.type==="content_block_start"&&evt.content_block&&evt.content_block.type==="tool_result"){
+                try{
+                  var results=JSON.parse(evt.content_block.content||"[]");
+                  if(Array.isArray(results)){
+                    results.forEach(function(r){if(r.url&&sources.indexOf(r.url)<0)sources.push({url:r.url,title:r.title||r.url});});
+                  }
+                }catch(e){}
+              }
+              // Also capture from tool_use input (search queries returned as results)
+              if(evt.type==="content_block_delta"&&evt.delta&&evt.delta.type==="input_json_delta"){
+                // search results come through differently - capture in onDone via full response
               }
             }catch(e){}
           }
@@ -1344,41 +1368,36 @@ function appendVChatMsg(role,text,venueId){
 // Parse Claude response for venue data updates
 function parseVenueUpdates(text, v){
   var updates={};
-  // Capacity: look for numbers followed by guest/people/person
-  var capMatch=text.match(/(\d{2,4})\s*(guests?|people|persons?|attendees?)/i);
-  if(capMatch&&!v.capacity){updates.capacity="Up to "+capMatch[1]+" guests";}
 
-  // Price per night: look for currency amounts near "venue hire", "rental", "per night", "buyout"
-  var pnMatch=text.match(/[€$£](\d[\d,]+)\s*(?:per night|\/night|for the venue|venue hire|rental fee|buyout)/i);
-  if(!pnMatch)pnMatch=text.match(/(?:venue hire|per night|nightly rate|rental)[^\d€$£]*[€$£]?(\d[\d,]+)/i);
-  if(pnMatch&&!v.pricePerNight){
-    var amt=parseInt(pnMatch[1].replace(/,/g,""));
-    if(amt>500&&amt<500000)updates.pricePerNight=amt;
-  }
+  // Capacity
+  var capMatch=text.match(/(\d{2,4})\s*(?:guests?|people|persons?)/i);
+  if(!capMatch)capMatch=text.match(/(?:up to|maximum|max|holds?|accommodate)\s*(\d{2,4})/i);
+  if(capMatch){var cn=parseInt(capMatch[1]);if(cn>=20&&cn<=5000)updates.capacity="Up to "+cn+" guests";}
 
-  // Price per guest: look for per head / per person amounts
-  var pgMatch=text.match(/[€$£](\d[\d,]+)\s*(?:per (?:head|guest|person|pp))/i);
-  if(!pgMatch)pgMatch=text.match(/(?:per (?:head|guest|person)|per pp)[^\d€$£]*[€$£]?(\d[\d,]+)/i);
-  if(pgMatch&&!v.pricePerGuest){
-    var pgAmt=parseInt(pgMatch[1].replace(/,/g,""));
-    if(pgAmt>20&&pgAmt<2000)updates.pricePerGuest=pgAmt;
-  }
+  // Price per night - look for euro amounts near night/hire/venue/rental
+  var pnMatch=text.match(/[€](\d[\d,]+)(?:\s*(?:per night|per evening|\/night|for the venue|venue hire|rental|buyout))/i);
+  if(!pnMatch)pnMatch=text.match(/(?:per night|venue hire|nightly|rental)[^0-9€]{0,40}€?(\d[\d,]+)/i);
+  if(!pnMatch)pnMatch=text.match(/€(\d[\d,]+)[^0-9]{0,30}(?:per night|night|venue)/i);
+  if(pnMatch){var pa=parseInt(pnMatch[1].replace(/,/g,""));if(pa>500&&pa<500000)updates.pricePerNight=pa;}
 
-  // Airport: look for airport name + code
-  var apMatch=text.match(/([A-Za-z\s]+(?:Airport|airport))[^\(]*\(([A-Z]{3})\)[^\d]*(\d+\s*(?:min|minutes?|hr|hours?))/);
-  if(apMatch&&!v.airport){updates.airport=apMatch[1].trim()+" ("+apMatch[2]+") - "+apMatch[3];}
+  // Price per guest
+  var pgMatch=text.match(/€(\d[\d,]+)\s*(?:per(?:\s+(?:head|guest|person|pp)))/i);
+  if(!pgMatch)pgMatch=text.match(/(?:per head|per guest|per person|catering)[^0-9€]{0,30}€?(\d[\d,]+)/i);
+  if(pgMatch){var ga=parseInt(pgMatch[1].replace(/,/g,""));if(ga>10&&ga<5000)updates.pricePerGuest=ga;}
 
-  // Amenities: look for lists of features
-  var amenityKeywords=["pool","chapel","spa","gym","catering","accommodation","parking","garden","terrace","vineyard","beach","dock","helipad","wifi","bar","restaurant","ceremony","dance floor","bridal suite","guest rooms","cottages"];
-  var foundAmenities=[];
-  amenityKeywords.forEach(function(kw){
-    if(text.toLowerCase().indexOf(kw)>=0)foundAmenities.push(kw.charAt(0).toUpperCase()+kw.slice(1));
-  });
-  if(foundAmenities.length>0&&(!v.amenities||v.amenities.length===0)){updates.amenities=foundAmenities;}
+  // Airport
+  var apMatch=text.match(/([A-Za-z][A-Za-z ]{3,25}(?:Airport)?)[^(]*(\([A-Z]{3}\))[^0-9]*(\d+\s*(?:min|hr|hour)[a-z]*)/i);
+  if(apMatch)updates.airport=apMatch[1].trim()+" "+apMatch[2]+" - "+apMatch[3];
+
+  // Amenities - add new ones to existing list
+  var kwds=["pool","chapel","spa","gym","catering","accommodation","parking","garden","terrace","vineyard","beach","dock","helipad","wifi","bar","restaurant","dance floor","bridal suite","guest rooms","tennis","lake","fireplace","library"];
+  var existing=(v.amenities||[]).map(function(a){return a.toLowerCase();});
+  var found=[];
+  kwds.forEach(function(kw){if(text.toLowerCase().indexOf(kw)>=0&&existing.indexOf(kw)<0)found.push(kw.charAt(0).toUpperCase()+kw.slice(1));});
+  if(found.length)updates.amenities=(v.amenities||[]).concat(found);
 
   return updates;
 }
-
 function applyVenueUpdate(venueId, updates){
   venues=venues.map(function(v){
     if(v.id!==venueId)return v;
@@ -1389,41 +1408,67 @@ function applyVenueUpdate(venueId, updates){
   if(v)refreshSidebarData(v);
 }
 
-function renderUpdateButtons(updates, venueId, container){
-  if(!Object.keys(updates).length)return;
+function renderUpdateButtons(updates, venueId, container, sources){
+  if(!Object.keys(updates).length && !(sources&&sources.length)) return;
   var wrap=document.createElement('div');
   wrap.className='vchat-updates-wrap';
   var labels={
     capacity:'Capacity',pricePerNight:'Price/night',pricePerGuest:'Price/guest',
     airport:'Airport',amenities:'Amenities',desc:'Description'
   };
-  Object.keys(updates).forEach(function(key){
-    var val=updates[key];
-    var display=Array.isArray(val)?val.join(', '):(typeof val==='number'?'€'+val.toLocaleString():val);
-    var btn=document.createElement('button');
-    btn.className='vchat-update-btn';
-    btn.innerHTML='&#10003; Save '+labels[key]+': <em>'+esc(String(display).slice(0,40))+'</em>';
-    btn.onclick=function(){
-      var singleUpdate={};singleUpdate[key]=val;
-      applyVenueUpdate(venueId,singleUpdate);
-      btn.innerHTML='&#10003; Saved!';
-      btn.style.background='#c8f0a8';
-      btn.disabled=true;
-    };
-    wrap.appendChild(btn);
-  });
-  // "Save all" button if multiple fields
-  if(Object.keys(updates).length>1){
-    var allBtn=document.createElement('button');
-    allBtn.className='vchat-update-btn';
-    allBtn.style.background='#3C3489';allBtn.style.color='white';allBtn.style.borderColor='#3C3489';
-    allBtn.innerHTML='&#10003; Save all '+Object.keys(updates).length+' fields';
-    allBtn.onclick=function(){
-      applyVenueUpdate(venueId,updates);
-      wrap.querySelectorAll('.vchat-update-btn').forEach(function(b){b.innerHTML='&#10003; Saved!';b.style.background='#c8f0a8';b.style.color='#27500A';b.disabled=true;});
-    };
-    wrap.insertBefore(allBtn,wrap.firstChild);
+
+  if(Object.keys(updates).length){
+    // Save all button
+    if(Object.keys(updates).length>1){
+      var allBtn=document.createElement('button');
+      allBtn.className='vchat-update-btn';
+      allBtn.style.cssText='background:#3C3489;color:white;border-color:#3C3489;';
+      allBtn.innerHTML='&#10003; Save all '+Object.keys(updates).length+' fields';
+      allBtn.onclick=function(){
+        applyVenueUpdate(venueId,updates);
+        wrap.querySelectorAll('.vchat-update-btn').forEach(function(b){b.innerHTML='&#10003; Saved!';b.style.background='#c8f0a8';b.style.color='#27500A';b.disabled=true;});
+      };
+      wrap.appendChild(allBtn);
+    }
+    // Individual save buttons
+    Object.keys(updates).forEach(function(key){
+      var val=updates[key];
+      var display=Array.isArray(val)?val.join(', '):(typeof val==='number'?'€'+val.toLocaleString():String(val));
+      var btn=document.createElement('button');
+      btn.className='vchat-update-btn';
+      btn.innerHTML='&#10003; Save '+labels[key]+': <em>'+esc(display.slice(0,40))+'</em>';
+      btn.onclick=function(){
+        var u={};u[key]=val;
+        applyVenueUpdate(venueId,u);
+        btn.innerHTML='&#10003; Saved!';
+        btn.style.background='#c8f0a8';
+        btn.disabled=true;
+      };
+      wrap.appendChild(btn);
+    });
   }
+
+  // Sources section
+  if(sources&&sources.length){
+    var srcDiv=document.createElement('div');
+    srcDiv.style.cssText='margin-top:8px;padding:7px 10px;background:var(--bg2);border-radius:var(--radius);border:0.5px solid var(--border);font-size:11px;';
+    srcDiv.innerHTML='<div style="color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">&#128269; Sources</div>';
+    sources.slice(0,4).forEach(function(s){
+      var url=typeof s==='string'?s:s.url;
+      var title=typeof s==='string'?s:(s.title||s.url);
+      if(!url)return;
+      var a=document.createElement('a');
+      a.href=url;
+      a.target='_blank';
+      a.rel='noopener';
+      a.style.cssText='display:block;color:var(--blue);text-decoration:none;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+      a.textContent='↗ '+title;
+      a.title=url;
+      srcDiv.appendChild(a);
+    });
+    wrap.appendChild(srcDiv);
+  }
+
   container.appendChild(wrap);
 }
 
@@ -1440,13 +1485,25 @@ function sendVChat(text,venueId){
   vchatTyping=true;
   document.getElementById("vchat-send").disabled=true;
 
-  var system="You are a wedding planning assistant helping a couple research "+v.name+" in "+v.region+". "+
-    "Known details: capacity="+(v.capacity||"unknown")+", price per night="+(v.pricePerNight?"€"+v.pricePerNight:"unknown")+
-    ", price per guest="+(v.pricePerGuest?"€"+v.pricePerGuest:"unknown")+
-    ", nearest airport="+(v.airport||"unknown")+", website="+(v.website||"unknown")+
-    ", amenities="+(v.amenities&&v.amenities.length?v.amenities.join(", "):"unknown")+". "+
-    "Use web search to find current, accurate details. Be specific and concise. "+
-    "When you find specific facts like capacity, pricing, or amenities, state them clearly with numbers so they can be saved.";
+  var missing=[];
+  if(!v.capacity)missing.push("capacity");
+  if(!v.pricePerNight)missing.push("price per night");
+  if(!v.pricePerGuest)missing.push("price per guest");
+  if(!v.airport)missing.push("nearest airport");
+
+  var system="You are a wedding planning assistant for "+v.name+" in "+v.region+". "+
+    "Current details -- capacity: "+(v.capacity||"NOT SET")+
+    ", price per night: "+(v.pricePerNight?"€"+v.pricePerNight:"NOT SET")+
+    ", price per guest: "+(v.pricePerGuest?"€"+v.pricePerGuest:"NOT SET")+
+    ", nearest airport: "+(v.airport||"NOT SET")+
+    ", website: "+(v.website||"unknown")+
+    ", amenities: "+(v.amenities&&v.amenities.length?v.amenities.join(", "):"none set")+". "+
+    (missing.length?"Fields not yet filled in: "+missing.join(", ")+". ":"")+
+    "IMPORTANT: You CAN help update venue details. When you find specific facts, state them clearly so the app can detect and save them automatically. "+
+    "For capacity say e.g. 'accommodates up to 150 guests'. "+
+    "For pricing say e.g. 'venue hire costs €8,000 per night' and '€120 per guest for catering'. "+
+    "For airport say e.g. 'closest airport is Milan Malpensa (MXP), about 45 min drive'. "+
+    "Use web search to find accurate current details. After answering, if you found new data the user can save it using the green buttons that appear below your message.";
 
   var typingEl=appendVChatMsg("typing","Searching...",venueId);
   var responseEl=null;
@@ -1469,15 +1526,16 @@ function sendVChat(text,venueId){
       responseEl.textContent=full;
       document.getElementById("vchat-messages").scrollTop=document.getElementById("vchat-messages").scrollHeight;
     },
-    function(full){
+    function(full,sources){
       if(!responseEl){typingEl.remove();msgWrap=document.createElement('div');document.getElementById("vchat-messages").appendChild(msgWrap);responseEl=document.createElement('div');responseEl.className='vchat-msg assistant';msgWrap.appendChild(responseEl);responseEl.textContent=full;}
       vchatHistory[venueId].push({role:"assistant",content:full});
       vchatTyping=false;
       document.getElementById("vchat-send").disabled=false;
-      // Parse response for extractable venue data and show update buttons
+      // Parse response for extractable venue data and show update buttons + sources
       var updates=parseVenueUpdates(full,v);
-      if(Object.keys(updates).length>0&&msgWrap){
-        renderUpdateButtons(updates,venueId,msgWrap);
+      var hasSources=sources&&sources.length>0;
+      if((Object.keys(updates).length>0||hasSources)&&msgWrap){
+        renderUpdateButtons(updates,venueId,msgWrap,sources||[]);
       }
       document.getElementById("vchat-messages").scrollTop=document.getElementById("vchat-messages").scrollHeight;
     },
@@ -1894,6 +1952,78 @@ function saveVenue(){
   }
   window._lat=null;window._lng=null;
 }
+function researchVenue(){
+  if(!selectedId)return;
+  var v=venues.filter(function(x){return x.id===selectedId;})[0];
+  if(!v)return;
+  var btn=document.getElementById('research-btn');
+  var resultsEl=document.getElementById('research-results');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner" style="border-top-color:#27500A"></span> Researching...';
+  resultsEl.innerHTML='';
+
+  var missing=[];
+  if(!v.capacity)missing.push('capacity (max guests)');
+  if(!v.pricePerNight)missing.push('venue hire price per night');
+  if(!v.pricePerGuest)missing.push('catering price per guest / per head');
+  if(!v.airport)missing.push('nearest airport and drive time');
+  if(!v.amenities||!v.amenities.length)missing.push('amenities and facilities');
+  if(!v.desc)missing.push('description');
+
+  var prompt='Research '+v.name+' wedding venue in '+v.region+'. '+
+    'Find the following specific information: '+missing.join(', ')+'. '+
+    'For each one, state the answer clearly with numbers. '+
+    'Format capacity as "accommodates up to X guests". '+
+    'Format venue pricing as "venue hire costs €X per night". '+
+    'Format catering as "catering costs €X per guest". '+
+    'Format airport as "nearest airport is NAME (CODE), approximately X min drive". '+
+    'Be concise and factual. Use web search to find current information from their website or reputable wedding directories.';
+
+  callClaude(
+    [{role:'user',content:prompt}],
+    null,
+    function(){},
+    function(full,sources){
+      btn.disabled=false;
+      btn.innerHTML='&#128269; Research missing fields with Claude';
+      // Show result in the info tab directly
+      var updates=parseVenueUpdates(full,v);
+      var wrap=document.createElement('div');
+      wrap.style.cssText='background:var(--bg2);border-radius:var(--radius);border:0.5px solid var(--border);padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.55;margin-bottom:8px;';
+      wrap.textContent=full;
+      resultsEl.appendChild(wrap);
+      renderUpdateButtons(updates,selectedId,resultsEl,sources||[]);
+      // Auto-switch focus stays on info tab -- no tab switch needed
+    },
+    function(err){
+      btn.disabled=false;
+      btn.innerHTML='&#128269; Research missing fields with Claude';
+      var errEl=document.createElement('div');
+      errEl.style.cssText='font-size:12px;color:#A32D2D;margin-top:6px;';
+      errEl.textContent='Error: '+String(err);
+      resultsEl.appendChild(errEl);
+    }
+  );
+}
+
+// Show/hide research button based on missing fields
+function updateResearchBar(v){
+  var hasAnthKey=!!getAnthKey();
+  var missingCount=0;
+  if(!v.capacity)missingCount++;
+  if(!v.pricePerNight)missingCount++;
+  if(!v.pricePerGuest)missingCount++;
+  if(!v.airport)missingCount++;
+  var bar=document.getElementById('research-bar');
+  var results=document.getElementById('research-results');
+  if(bar){
+    bar.style.display=(hasAnthKey&&missingCount>0)?'block':'none';
+    var btn=document.getElementById('research-btn');
+    if(btn)btn.innerHTML='&#128269; Research '+missingCount+' missing field'+(missingCount!==1?'s':'')+' with Claude';
+    if(results)results.innerHTML='';
+  }
+}
+
 window.addEventListener("load",function(){
   initMap();
   var fb=getFbCfg();
