@@ -2008,20 +2008,31 @@ function researchVenue(){
 
 // Show/hide research button based on missing fields
 function updateResearchBar(v){
-  var hasAnthKey=!!getAnthKey();
-  var missingCount=0;
-  if(!v.capacity)missingCount++;
-  if(!v.pricePerNight)missingCount++;
-  if(!v.pricePerGuest)missingCount++;
-  if(!v.airport)missingCount++;
-  var bar=document.getElementById('research-bar');
-  var results=document.getElementById('research-results');
-  if(bar){
-    bar.style.display=(hasAnthKey&&missingCount>0)?'block':'none';
-    var btn=document.getElementById('research-btn');
-    if(btn)btn.innerHTML='&#128269; Research '+missingCount+' missing field'+(missingCount!==1?'s':'')+' with Claude';
-    if(results)results.innerHTML='';
+  var hasAnthKey=getAnthKey()&&getAnthKey().length>0;
+  var missing=[];
+  if(!v.capacity||v.capacity==="")missing.push("capacity");
+  if(!v.pricePerNight||v.pricePerNight===0)missing.push("price per night");
+  if(!v.pricePerGuest||v.pricePerGuest===0)missing.push("price per guest");
+  if(!v.airport||v.airport==="")missing.push("airport");
+  var bar=document.getElementById("research-bar");
+  var results=document.getElementById("research-results");
+  if(!bar)return;
+  // Show button if API key exists AND there are missing fields
+  // Also show if API key exists even if all filled - useful for refreshing info
+  if(hasAnthKey){
+    bar.style.display="block";
+    var btn=document.getElementById("research-btn");
+    if(btn){
+      if(missing.length>0){
+        btn.innerHTML="&#128269; Research "+missing.length+" missing field"+(missing.length!==1?"s":"")+" with Claude";
+      } else {
+        btn.innerHTML="&#128269; Re-research this venue with Claude";
+      }
+    }
+  } else {
+    bar.style.display="none";
   }
+  if(results)results.innerHTML="";
 }
 
 window.addEventListener("load",function(){
