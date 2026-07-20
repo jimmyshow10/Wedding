@@ -929,6 +929,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div id="topbar">
   <h1>&#128141; Wedding Venues</h1>
   <button class="filter-btn active" id="filter-all" data-filter="all">All</button>
+  <button class="filter-btn" id="filter-starred" data-filter="starred">&#11088; Starred</button>
   <span id="country-filters"></span>
   <button class="tab-btn" id="budget-tab">&#128182; Budget</button>
   <button id="add-btn">+ Add venue</button>
@@ -1847,6 +1848,12 @@ document.getElementById("star-btn").onclick=function(){
   var sb=document.getElementById("star-btn");sb.textContent=isStarred?"\u2605 Starred":"\u2606 Star";sb.classList.toggle("starred",isStarred);
   var v=venues.filter(function(x){return x.id===selectedId;})[0];
   if(v&&venueMarkers[selectedId])venueMarkers[selectedId].setIcon(makeVenueIcon(v.emoji,v.country,isStarred));
+  // If in starred filter and just unstarred, hide the pin and close sidebar
+  if(currentFilter==="starred"&&!isStarred){
+    var m=venueMarkers[selectedId];
+    if(m&&map.hasLayer(m))map.removeLayer(m);
+    closeSidebar();
+  }
   pushToFirebase();
 };
 document.getElementById("edit-btn").onclick=function(){
@@ -1909,28 +1916,35 @@ function applyFilter(filter){
   });
   // Show/hide venue markers
   venues.forEach(function(v){
-    var show=filter==="all"||v.country===filter;
+    var show=filter==="all"
+      ||(filter==="starred"&&shortlist.indexOf(v.id)>=0)
+      ||(filter!=="all"&&filter!=="starred"&&v.country===filter);
     var m=venueMarkers[v.id];if(!m)return;
     if(show&&!map.hasLayer(m))m.addTo(map);
     else if(!show&&map.hasLayer(m))map.removeLayer(m);
   });
-  // Show/hide airport markers based on filter
-  // Only show airports when a specific country is selected
+  // Show/hide airport markers - only when a specific country is selected
   Object.keys(airportMarkers).forEach(function(code){
     airportMarkers[code].forEach(function(m){
-      if(filter!=="all"&&filter===code){if(!map.hasLayer(m))m.addTo(map);}
+      if(filter!=="all"&&filter!=="starred"&&filter===code){if(!map.hasLayer(m))m.addTo(map);}
       else{if(map.hasLayer(m))map.removeLayer(m);}
     });
   });
-  // Close sidebar if venue not in current filter
+  // Close sidebar if current venue not visible in this filter
   if(selectedId){
     var sv=venues.filter(function(v){return v.id===selectedId;})[0];
-    if(sv&&filter!=="all"&&sv.country!==filter)closeSidebar();
+    if(sv){
+      var stillVisible=filter==="all"
+        ||(filter==="starred"&&shortlist.indexOf(sv.id)>=0)
+        ||(filter!=="starred"&&sv.country===filter);
+      if(!stillVisible)closeSidebar();
+    }
   }
 }
 
-// Wire up All button
+// Wire up All and Starred buttons
 document.getElementById("filter-all").onclick=function(){applyFilter("all");};
+document.getElementById("filter-starred").onclick=function(){applyFilter("starred");};
 
 // ── BUDGET ────────────────────────────────────────────────────────────────────
 document.getElementById("budget-tab").onclick=function(){document.getElementById("budget-panel").classList.add("show");renderBudget();};
