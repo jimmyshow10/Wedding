@@ -766,6 +766,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .v-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;margin-bottom:6px;}
 .badge-fr{background:var(--blue-light);color:#0C447C;}
 .badge-it{background:var(--red-light);color:var(--red-dark);}
+.badge-other{background:var(--purple-light);color:var(--purple);}
 .v-name{font-size:16px;font-weight:600;margin-bottom:2px;}
 .v-region{font-size:12px;color:var(--text2);margin-bottom:10px;}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
@@ -927,9 +928,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <div id="topbar">
   <h1>&#128141; Wedding Venues</h1>
-  <button class="filter-btn active" data-filter="all">All</button>
-  <button class="filter-btn" data-filter="FR">&#127467;&#127479; France</button>
-  <button class="filter-btn" data-filter="IT">&#127470;&#127481; Italy</button>
+  <button class="filter-btn active" id="filter-all" data-filter="all">All</button>
+  <span id="country-filters"></span>
   <button class="tab-btn" id="budget-tab">&#128182; Budget</button>
   <button id="add-btn">+ Add venue</button>
 </div>
@@ -1055,7 +1055,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="divider"><span>details</span></div>
     </div>
     <label>Name *</label><input id="f-name" placeholder="Venue name"/>
-    <label>Country</label><select id="f-country"><option value="FR">France</option><option value="IT">Italy</option></select>
+    <label>Country code (e.g. FR, IT, ES, PT, GR)</label><input id="f-country" placeholder="FR" maxlength="2" style="text-transform:uppercase"/>
     <label>Region / City</label><input id="f-region" placeholder="Provence, France"/>
     <label>Sleeping capacity</label><input id="f-cap" placeholder="Sleeps up to 30 guests"/>
     <label>Price per night (&#8364;)</label><input id="f-ppn" type="number" placeholder="4500"/>
@@ -1083,7 +1083,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 //# sourceMappingURL=leaflet.js.map</script>
 <script>
 var DEFAULT_VENUES=[{"id": 1, "name": "Chateau de Tourreau", "country": "FR", "region": "Provence, France", "lat": 43.86, "lng": 5.03, "capacity": "Up to 200 guests", "pricePerNight": 4500, "pricePerGuest": 85, "airport": "Avignon (AVN) - 30 min", "amenities": ["Indoor chapel", "Catering kitchen", "Pool", "Guest rooms", "Helipad", "Wine cellar"], "desc": "A stunning 18th-century chateau set among lavender fields in Provence.", "emoji": "\ud83c\udf38", "website": "https://chateau-tourreau.com", "phone": "", "email": "", "instagram": ""}, {"id": 2, "name": "Domaine de Fontenille", "country": "FR", "region": "Luberon, France", "lat": 43.78, "lng": 5.28, "capacity": "Up to 80 guests", "pricePerNight": 2800, "pricePerGuest": 70, "airport": "Marseille (MRS) - 1 hr", "amenities": ["Outdoor terrace", "Vineyard", "Catering included", "10 suites", "Spa", "Pool"], "desc": "A beautifully restored farmhouse and vineyard in the Luberon.", "emoji": "\ud83c\udf77", "website": "https://domainedefontenille.com", "phone": "+33 4 90 74 60 00", "email": "reservations@fontenille.com", "instagram": "@domainedefontenille"}, {"id": 3, "name": "Villa dEste Lake Como", "country": "IT", "region": "Lake Como, Italy", "lat": 45.96, "lng": 9.14, "capacity": "Up to 300 guests", "pricePerNight": 9000, "pricePerGuest": 150, "airport": "Milan Malpensa (MXP) - 1 hr", "amenities": ["Grand ballroom", "Private dock", "Boat hire", "Florist on-site", "Hotel buyout"], "desc": "One of the world's most iconic lakeside venues with breathtaking views over Lake Como.", "emoji": "\ud83c\udfdb", "website": "https://villadeste.com", "phone": "+39 031 3481", "email": "info@villadeste.com", "instagram": "@villadeste1568"}, {"id": 4, "name": "Borgo Egnazia", "country": "IT", "region": "Puglia, Italy", "lat": 40.72, "lng": 17.41, "capacity": "Up to 500 guests", "pricePerNight": 12000, "pricePerGuest": 200, "airport": "Brindisi (BDS) - 45 min", "amenities": ["Private village", "5 ceremony spaces", "Beach club", "Trulli suites", "Cooking classes"], "desc": "A spectacular masseria-style resort in Puglia designed to feel like a private village.", "emoji": "\ud83e\uded2", "website": "https://borgoegnazia.com", "phone": "+39 080 225 5000", "email": "info@borgoegnazia.com", "instagram": "@borgoegnazia"}, {"id": 5, "name": "Chateau Les Crayers", "country": "FR", "region": "Champagne, France", "lat": 49.24, "lng": 4.03, "capacity": "Up to 150 guests", "pricePerNight": 5500, "pricePerGuest": 110, "airport": "Paris CDG - 1.5 hr", "amenities": ["Champagne cellar", "2-Michelin chef", "Park and gardens", "Bridal suite"], "desc": "An elegant belle epoque chateau in Champagne. Michelin-starred dining and manicured grounds.", "emoji": "\ud83e\udd42", "website": "https://lescrayeres.com", "phone": "+33 3 26 24 90 00", "email": "", "instagram": "@lescrayeres"}, {"id": 6, "name": "Villa Balbianello", "country": "IT", "region": "Lake Como, Italy", "lat": 45.99, "lng": 9.11, "capacity": "Up to 120 guests", "pricePerNight": 6000, "pricePerGuest": 120, "airport": "Milan Malpensa (MXP) - 55 min", "amenities": ["Iconic loggia", "Lake views", "Film location", "Boat-access only"], "desc": "Made famous by Casino Royale and Star Wars, offering the most iconic backdrop on Lake Como.", "emoji": "\ud83c\udfac", "website": "", "phone": "", "email": "info@fondoambiente.it", "instagram": ""}, {"id": 7, "name": "Chateau de Varennes", "country": "FR", "region": "Burgundy, France", "lat": 47.04, "lng": 4.85, "capacity": "Up to 160 guests", "pricePerNight": 3800, "pricePerGuest": 90, "airport": "Lyon (LYS) - 1.5 hr", "amenities": ["Full exclusive hire", "Vineyard", "14 bedrooms", "Outdoor ceremony", "Pet friendly"], "desc": "A privately-owned chateau in Burgundy. Exclusive hire means the entire estate is yours.", "emoji": "\ud83c\udf47", "website": "", "phone": "", "email": "", "instagram": ""}, {"id": 8, "name": "Masseria Torre Coccaro", "country": "IT", "region": "Puglia, Italy", "lat": 40.74, "lng": 17.55, "capacity": "Up to 200 guests", "pricePerNight": 5200, "pricePerGuest": 95, "airport": "Brindisi (BDS) - 40 min", "amenities": ["Trulli ceremony", "Olive grove", "Private beach", "Spa", "Cooking school"], "desc": "A centuries-old fortified farmhouse among ancient olive groves near Fasano.", "emoji": "\ud83c\udf3f", "website": "https://torrecoccaro.com", "phone": "+39 080 482 9310", "email": "info@torrecoccaro.com", "instagram": "@masseriatorre"}];
-var AIRPORTS=[{"name": "Paris CDG", "code": "CDG", "lat": 49.0097, "lng": 2.5479}, {"name": "Paris Orly", "code": "ORY", "lat": 48.7233, "lng": 2.3794}, {"name": "Lyon", "code": "LYS", "lat": 45.7256, "lng": 5.0811}, {"name": "Marseille", "code": "MRS", "lat": 43.4365, "lng": 5.215}, {"name": "Nice", "code": "NCE", "lat": 43.6584, "lng": 7.2159}, {"name": "Bordeaux", "code": "BOD", "lat": 44.8283, "lng": -0.7156}, {"name": "Avignon", "code": "AVN", "lat": 43.9073, "lng": 4.9018}, {"name": "Milan Malpensa", "code": "MXP", "lat": 45.6306, "lng": 8.7281}, {"name": "Rome Fiumicino", "code": "FCO", "lat": 41.8003, "lng": 12.2389}, {"name": "Venice", "code": "VCE", "lat": 45.5053, "lng": 12.3519}, {"name": "Florence", "code": "FLR", "lat": 43.81, "lng": 11.2051}, {"name": "Naples", "code": "NAP", "lat": 40.886, "lng": 14.2908}, {"name": "Brindisi", "code": "BDS", "lat": 40.6576, "lng": 17.947}];
+var AIRPORTS=[{"name": "Paris CDG", "code": "CDG", "country": "FR", "lat": 49.0097, "lng": 2.5479}, {"name": "Paris Orly", "code": "ORY", "country": "FR", "lat": 48.7233, "lng": 2.3794}, {"name": "Lyon", "code": "LYS", "country": "FR", "lat": 45.7256, "lng": 5.0811}, {"name": "Marseille", "code": "MRS", "country": "FR", "lat": 43.4365, "lng": 5.215}, {"name": "Nice", "code": "NCE", "country": "FR", "lat": 43.6584, "lng": 7.2159}, {"name": "Bordeaux", "code": "BOD", "country": "FR", "lat": 44.8283, "lng": -0.7156}, {"name": "Toulouse", "code": "TLS", "country": "FR", "lat": 43.629, "lng": 1.3638}, {"name": "Nantes", "code": "NTE", "country": "FR", "lat": 47.1532, "lng": -1.6108}, {"name": "Milan Malpensa", "code": "MXP", "country": "IT", "lat": 45.6306, "lng": 8.7281}, {"name": "Milan Linate", "code": "LIN", "country": "IT", "lat": 45.4454, "lng": 9.2768}, {"name": "Rome Fiumicino", "code": "FCO", "country": "IT", "lat": 41.8003, "lng": 12.2389}, {"name": "Venice", "code": "VCE", "country": "IT", "lat": 45.5053, "lng": 12.3519}, {"name": "Florence", "code": "FLR", "country": "IT", "lat": 43.81, "lng": 11.2051}, {"name": "Naples", "code": "NAP", "country": "IT", "lat": 40.886, "lng": 14.2908}, {"name": "Brindisi", "code": "BDS", "country": "IT", "lat": 40.6576, "lng": 17.947}, {"name": "Bari", "code": "BRI", "country": "IT", "lat": 41.1389, "lng": 16.7606}, {"name": "Bologna", "code": "BLQ", "country": "IT", "lat": 44.5354, "lng": 11.2888}, {"name": "Catania", "code": "CTA", "country": "IT", "lat": 37.4668, "lng": 15.0664}, {"name": "Palermo", "code": "PMO", "country": "IT", "lat": 38.1796, "lng": 13.091}, {"name": "Madrid Barajas", "code": "MAD", "country": "ES", "lat": 40.4719, "lng": -3.5626}, {"name": "Barcelona", "code": "BCN", "country": "ES", "lat": 41.2971, "lng": 2.0785}, {"name": "Seville", "code": "SVQ", "country": "ES", "lat": 37.418, "lng": -5.8931}, {"name": "Malaga", "code": "AGP", "country": "ES", "lat": 36.6749, "lng": -4.4991}, {"name": "Bilbao", "code": "BIO", "country": "ES", "lat": 43.3011, "lng": -2.9106}, {"name": "Valencia", "code": "VLC", "country": "ES", "lat": 39.4893, "lng": -0.4816}, {"name": "Palma Mallorca", "code": "PMI", "country": "ES", "lat": 39.5517, "lng": 2.7388}, {"name": "Lisbon", "code": "LIS", "country": "PT", "lat": 38.7742, "lng": -9.1342}, {"name": "Porto", "code": "OPO", "country": "PT", "lat": 41.2481, "lng": -8.6814}, {"name": "Faro", "code": "FAO", "country": "PT", "lat": 37.0144, "lng": -7.9659}, {"name": "Athens", "code": "ATH", "country": "GR", "lat": 37.9364, "lng": 23.9445}, {"name": "Santorini", "code": "JTR", "country": "GR", "lat": 36.3992, "lng": 25.4793}, {"name": "Mykonos", "code": "JMK", "country": "GR", "lat": 37.4351, "lng": 25.3481}, {"name": "Thessaloniki", "code": "SKG", "country": "GR", "lat": 40.5197, "lng": 22.9709}, {"name": "Corfu", "code": "CFU", "country": "GR", "lat": 39.6019, "lng": 19.9117}, {"name": "Dubrovnik", "code": "DBV", "country": "HR", "lat": 42.5614, "lng": 18.2682}, {"name": "Split", "code": "SPU", "country": "HR", "lat": 43.5389, "lng": 16.298}, {"name": "Zagreb", "code": "ZAG", "country": "HR", "lat": 45.7429, "lng": 16.0688}, {"name": "London Heathrow", "code": "LHR", "country": "GB", "lat": 51.4775, "lng": -0.4614}, {"name": "London Gatwick", "code": "LGW", "country": "GB", "lat": 51.1537, "lng": -0.1821}, {"name": "Edinburgh", "code": "EDI", "country": "GB", "lat": 55.9508, "lng": -3.3724}, {"name": "Frankfurt", "code": "FRA", "country": "DE", "lat": 50.0379, "lng": 8.5622}, {"name": "Munich", "code": "MUC", "country": "DE", "lat": 48.3538, "lng": 11.7861}, {"name": "Berlin", "code": "BER", "country": "DE", "lat": 52.3667, "lng": 13.5033}, {"name": "Vienna", "code": "VIE", "country": "AT", "lat": 48.1103, "lng": 16.5697}, {"name": "Salzburg", "code": "SZG", "country": "AT", "lat": 47.7933, "lng": 13.0043}, {"name": "Innsbruck", "code": "INN", "country": "AT", "lat": 47.2602, "lng": 11.344}, {"name": "Zurich", "code": "ZRH", "country": "CH", "lat": 47.4647, "lng": 8.5492}, {"name": "Geneva", "code": "GVA", "country": "CH", "lat": 46.2381, "lng": 6.1089}, {"name": "Amsterdam", "code": "AMS", "country": "NL", "lat": 52.3086, "lng": 4.7639}, {"name": "Prague", "code": "PRG", "country": "CZ", "lat": 50.1008, "lng": 14.26}, {"name": "Budapest", "code": "BUD", "country": "HU", "lat": 47.4369, "lng": 19.2556}, {"name": "Istanbul", "code": "IST", "country": "TR", "lat": 41.2608, "lng": 28.7418}, {"name": "Bodrum", "code": "BJV", "country": "TR", "lat": 37.2506, "lng": 27.6644}, {"name": "Malta", "code": "MLA", "country": "MT", "lat": 35.8575, "lng": 14.4775}, {"name": "Tivat", "code": "TIV", "country": "ME", "lat": 42.4047, "lng": 18.7233}, {"name": "Ljubljana", "code": "LJU", "country": "SI", "lat": 46.2237, "lng": 14.4576}];
+var COUNTRY_META={
+  "FR":{"name":"France","flag":"\uD83C\uDDEB\uD83C\uDDF7"},
+  "IT":{"name":"Italy","flag":"\uD83C\uDDEE\uD83C\uDDF9"},
+  "ES":{"name":"Spain","flag":"\uD83C\uDDEA\uD83C\uDDF8"},
+  "PT":{"name":"Portugal","flag":"\uD83C\uDDF5\uD83C\uDDF9"},
+  "GR":{"name":"Greece","flag":"\uD83C\uDDEC\uD83C\uDDF7"},
+  "HR":{"name":"Croatia","flag":"\uD83C\uDDED\uD83C\uDDF7"},
+  "GB":{"name":"UK","flag":"\uD83C\uDDEC\uD83C\uDDE7"},
+  "DE":{"name":"Germany","flag":"\uD83C\uDDE9\uD83C\uDDEA"},
+  "AT":{"name":"Austria","flag":"\uD83C\uDDE6\uD83C\uDDF9"},
+  "CH":{"name":"Switzerland","flag":"\uD83C\uDDE8\uD83C\uDDED"},
+  "NL":{"name":"Netherlands","flag":"\uD83C\uDDF3\uD83C\uDDF1"},
+  "CZ":{"name":"Czech Republic","flag":"\uD83C\uDDE8\uD83C\uDDFF"},
+  "HU":{"name":"Hungary","flag":"\uD83C\uDDED\uD83C\uDDFA"},
+  "TR":{"name":"Turkey","flag":"\uD83C\uDDF9\uD83C\uDDF7"},
+  "MT":{"name":"Malta","flag":"\uD83C\uDDF2\uD83C\uDDF9"},
+  "ME":{"name":"Montenegro","flag":"\uD83C\uDDF2\uD83C\uDDEA"},
+  "SI":{"name":"Slovenia","flag":"\uD83C\uDDF8\uD83C\uDDEE"}
+};
+function getCountryMeta(code){return COUNTRY_META[code]||{name:code,flag:"\uD83C\uDDF4"};}
+
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 function getCfg(){try{var s=localStorage.getItem("wvp_cfg");return s?JSON.parse(s):{};} catch(e){return {};}}
@@ -1610,10 +1631,17 @@ function rebuildMap(){
   Object.keys(venueMarkers).forEach(function(id){var m=venueMarkers[id];if(m&&map.hasLayer(m))map.removeLayer(m);});
   venueMarkers={};
   venues.forEach(function(v){addVenueMarker(v);});
-  if(currentFilter!=="all"){venues.forEach(function(v){if(v.country!==currentFilter){var m=venueMarkers[v.id];if(m&&map.hasLayer(m))map.removeLayer(m);}});}
+  buildCountryFilters();
+  // Re-apply current filter
+  if(currentFilter!=="all"){
+    venues.forEach(function(v){
+      if(v.country!==currentFilter){var m=venueMarkers[v.id];if(m&&map.hasLayer(m))map.removeLayer(m);}
+    });
+  }
 }
 function makeVenueIcon(emoji,country,starred){
-  var bg=country==="FR"?"#185FA5":"#993C1D";
+  var colors={"FR":"#185FA5","IT":"#993C1D","ES":"#C0392B","PT":"#006600","GR":"#1565C0","HR":"#0D3E8E","GB":"#012169","DE":"#333","AT":"#ED2939","CH":"#FF0000","GR":"#0D5EAF"};
+  var bg=colors[country]||"#6B4FA0";
   var ring=starred?"3px solid #EF9F27":"2px solid white";
   return L.divIcon({className:"",html:'<div style="width:36px;height:36px;border-radius:50%;background:'+bg+';display:flex;align-items:center;justify-content:center;font-size:16px;border:'+ring+';box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer;">'+emoji+'</div>',iconSize:[36,36],iconAnchor:[18,18],popupAnchor:[0,-22]});
 }
@@ -1627,8 +1655,12 @@ function addVenueMarker(v){
   venueMarkers[v.id]=m;
 }
 function addAirportMarker(a){
-  var m=L.marker([a.lat,a.lng],{icon:makeAirportIcon(a.code),interactive:true,zIndexOffset:-100}).addTo(map);
+  // Start hidden - only shown when country filter is active
+  var m=L.marker([a.lat,a.lng],{icon:makeAirportIcon(a.code),interactive:true,zIndexOffset:-100});
   m.bindTooltip(a.name+" Airport",{direction:"top"});
+  var code=a.country||"XX";
+  if(!airportMarkers[code])airportMarkers[code]=[];
+  airportMarkers[code].push(m);
 }
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function stars(n){var s="";for(var i=0;i<5;i++)s+=i<Math.round(n)?"\u2605":"\u2606";return s;}
@@ -1767,8 +1799,12 @@ function openSidebar(v,tab){
 }
 function refreshSidebarData(v){
   var badge=document.getElementById("v-badge");
-  badge.textContent=v.country==="FR"?"France":"Italy";
-  badge.className="v-badge "+(v.country==="FR"?"badge-fr":"badge-it");
+  var meta=getCountryMeta(v.country);
+  badge.textContent=meta.flag+" "+meta.name;
+  var badgeClass="badge-other";
+  if(v.country==="FR")badgeClass="badge-fr";
+  else if(v.country==="IT")badgeClass="badge-it";
+  badge.className="v-badge "+badgeClass;
   document.getElementById("v-name").textContent=v.name;
   document.getElementById("v-region").textContent=v.region;
   var capEl=document.getElementById("v-cap");capEl.textContent=v.capacity||"Tap Edit to add";capEl.className="stat-v"+(v.capacity?"":" missing");
@@ -1843,19 +1879,58 @@ document.getElementById("save-note-btn").onclick=function(){
 };
 
 // ── FILTERS ───────────────────────────────────────────────────────────────────
-document.querySelectorAll(".filter-btn").forEach(function(btn){
-  btn.onclick=function(){
-    document.querySelectorAll(".filter-btn").forEach(function(b){b.classList.remove("active");});
-    btn.classList.add("active");currentFilter=btn.dataset.filter;
-    venues.forEach(function(v){
-      var show=currentFilter==="all"||v.country===currentFilter;
-      var m=venueMarkers[v.id];if(!m)return;
-      if(show&&!map.hasLayer(m))m.addTo(map);
-      else if(!show&&map.hasLayer(m))map.removeLayer(m);
+// Airport markers stored by country
+var airportMarkers={};
+
+function buildCountryFilters(){
+  // Get unique countries from venues
+  var countries=[];
+  venues.forEach(function(v){if(v.country&&countries.indexOf(v.country)<0)countries.push(v.country);});
+  countries.sort();
+  var container=document.getElementById("country-filters");
+  if(!container)return;
+  container.innerHTML="";
+  countries.forEach(function(code){
+    var meta=getCountryMeta(code);
+    var btn=document.createElement("button");
+    btn.className="filter-btn"+(currentFilter===code?" active":"");
+    btn.dataset.filter=code;
+    btn.textContent=meta.flag+" "+meta.name;
+    btn.onclick=function(){applyFilter(code);};
+    container.appendChild(btn);
+  });
+}
+
+function applyFilter(filter){
+  currentFilter=filter;
+  // Update button states
+  document.querySelectorAll(".filter-btn").forEach(function(b){
+    b.classList.toggle("active",b.dataset.filter===filter);
+  });
+  // Show/hide venue markers
+  venues.forEach(function(v){
+    var show=filter==="all"||v.country===filter;
+    var m=venueMarkers[v.id];if(!m)return;
+    if(show&&!map.hasLayer(m))m.addTo(map);
+    else if(!show&&map.hasLayer(m))map.removeLayer(m);
+  });
+  // Show/hide airport markers based on filter
+  // Only show airports when a specific country is selected
+  Object.keys(airportMarkers).forEach(function(code){
+    airportMarkers[code].forEach(function(m){
+      if(filter!=="all"&&filter===code){if(!map.hasLayer(m))m.addTo(map);}
+      else{if(map.hasLayer(m))map.removeLayer(m);}
     });
-    if(selectedId){var sv=venues.filter(function(v){return v.id===selectedId;})[0];if(sv&&currentFilter!=="all"&&sv.country!==currentFilter)closeSidebar();}
-  };
-});
+  });
+  // Close sidebar if venue not in current filter
+  if(selectedId){
+    var sv=venues.filter(function(v){return v.id===selectedId;})[0];
+    if(sv&&filter!=="all"&&sv.country!==filter)closeSidebar();
+  }
+}
+
+// Wire up All button
+document.getElementById("filter-all").onclick=function(){applyFilter("all");};
 
 // ── BUDGET ────────────────────────────────────────────────────────────────────
 document.getElementById("budget-tab").onclick=function(){document.getElementById("budget-panel").classList.add("show");renderBudget();};
@@ -1939,7 +2014,26 @@ function scanVenue(){
     var addr=place.formattedAddress||"";
     var lat=place.location&&place.location.latitude;
     var lng=place.location&&place.location.longitude;
-    var country=(addr.toLowerCase().indexOf("italy")>=0||(lng&&lng>6.5))?"IT":"FR";
+    // Detect country from address
+    var country="FR"; // default
+    var addrLow=addr.toLowerCase();
+    if(addrLow.indexOf("italy")>=0||addrLow.indexOf("italia")>=0)country="IT";
+    else if(addrLow.indexOf("spain")>=0||addrLow.indexOf("espana")>=0||addrLow.indexOf("españa")>=0)country="ES";
+    else if(addrLow.indexOf("portugal")>=0)country="PT";
+    else if(addrLow.indexOf("greece")>=0||addrLow.indexOf("grecia")>=0)country="GR";
+    else if(addrLow.indexOf("croatia")>=0||addrLow.indexOf("hrvatska")>=0)country="HR";
+    else if(addrLow.indexOf("united kingdom")>=0||addrLow.indexOf("england")>=0||addrLow.indexOf("scotland")>=0||addrLow.indexOf("wales")>=0)country="GB";
+    else if(addrLow.indexOf("germany")>=0||addrLow.indexOf("deutschland")>=0)country="DE";
+    else if(addrLow.indexOf("austria")>=0||addrLow.indexOf("österreich")>=0)country="AT";
+    else if(addrLow.indexOf("switzerland")>=0||addrLow.indexOf("schweiz")>=0)country="CH";
+    else if(addrLow.indexOf("netherlands")>=0||addrLow.indexOf("holland")>=0)country="NL";
+    else if(addrLow.indexOf("turkey")>=0||addrLow.indexOf("türkiye")>=0)country="TR";
+    else if(addrLow.indexOf("malta")>=0)country="MT";
+    else if(addrLow.indexOf("montenegro")>=0)country="ME";
+    else if(addrLow.indexOf("slovenia")>=0)country="SI";
+    else if(addrLow.indexOf("czech")>=0)country="CZ";
+    else if(addrLow.indexOf("hungary")>=0||addrLow.indexOf("magyarország")>=0)country="HU";
+    else if(addrLow.indexOf("france")>=0)country="FR";
     var parts=addr.split(",");
     var region=parts.length>1?parts[parts.length-2].trim()+", "+(country==="FR"?"France":"Italy"):addr;
     document.getElementById("f-name").value=name;
@@ -1966,7 +2060,7 @@ function scanVenue(){
 function saveVenue(){
   var name=document.getElementById("f-name").value.trim();
   if(!name){alert("Please enter a venue name.");return;}
-  var country=document.getElementById("f-country").value;
+  var country=(document.getElementById("f-country").value||"FR").toUpperCase().trim().slice(0,2);
   var lat=window._lat||(country==="FR"?44+Math.random()*4:42+Math.random()*4);
   var lng=window._lng||(country==="FR"?1+Math.random()*6:10+Math.random()*5);
   var amenitiesRaw=document.getElementById("f-amenities").value.trim();
