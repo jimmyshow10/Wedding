@@ -938,7 +938,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div id="sync-bar"><div id="sync-dot"></div><span id="sync-text">Not connected</span></div>
 
 <div id="topbar">
-  <h1>&#128141; Wedding Venues <span style="font-size:10px;font-weight:400;color:var(--text3);vertical-align:middle;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:2px 7px;">v2</span></h1>
+  <h1>&#128141; Wedding Venues <span style="font-size:10px;font-weight:400;color:var(--text3);vertical-align:middle;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:2px 7px;">v3</span></h1>
   <button class="filter-btn active" id="filter-all" data-filter="all">All</button>
   <button class="filter-btn" id="filter-starred" data-filter="starred">&#11088; Starred</button>
   <span id="country-filters"></span>
@@ -1211,7 +1211,7 @@ function callClaude(messages, systemPrompt, onChunk, onDone, onError){
     model:"claude-sonnet-4-5",
     max_tokens:600,
     stream:true,
-    tools:[{type:"web_search_20250305",name:"web_search"}],
+    tools:[{type:"web_search_20250305",name:"web_search",max_uses:2}],
     messages:messages
   };
   if(systemPrompt)body.system=systemPrompt;
@@ -2181,11 +2181,12 @@ function researchVenue(){
   if(!v.amenities||!v.amenities.length)missing.push('amenities and facilities');
   if(!v.desc)missing.push('description');
 
-  var prompt='Find these facts about '+v.name+' in '+v.region+': '+missing.join(', ')+'. '+
-    'Be brief. Sleeping capacity = bedrooms/overnight guests only. '+
-    'Pricing = per night rate (divide packages by nights, use peak season). '+
-    'Airport = nearest with code and drive time. '+
-    'State each fact on one line with a number.';
+  var prompt='Facts needed about '+v.name+' ('+v.region+'): '+missing.join(', ')+'. '+
+    'Answer from your training knowledge first. Only search the web if you truly do not know. '+
+    'One search maximum. Keep answer under 100 words. '+
+    'Sleeping capacity = overnight guests only (not wedding headcount). '+
+    'Pricing = peak season per-night rate in euros. '+
+    'Each fact on one short line.';
 
   // Use non-streaming fetch so we can extract citation URLs reliably
   // Check cache first - avoid re-searching venues we already researched
@@ -2212,8 +2213,8 @@ function researchVenue(){
     },
     body:JSON.stringify({
       model:"claude-sonnet-4-5",
-      max_tokens:800,
-      tools:[{type:"web_search_20250305",name:"web_search"}],
+      max_tokens:300,
+      tools:[{type:"web_search_20250305",name:"web_search",max_uses:1}],
       messages:[{role:"user",content:prompt}]
     })
   })
