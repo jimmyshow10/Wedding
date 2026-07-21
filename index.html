@@ -915,7 +915,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <!-- SETUP MODAL -->
 <div id="setup-modal">
   <div class="setup-card">
-    <h2>&#128141; Wedding Venue Planner</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <h2>&#128141; Wedding Venue Planner</h2>
+      <button id="setup-close-btn" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);padding:4px;line-height:1;-webkit-appearance:none;">&#10005;</button>
+    </div>
     <p>Connect Firebase for real-time sync, and add your API keys to enable photos, reviews, and AI chat.</p>
     <div class="setup-step"><strong>Firebase (required for sync)</strong>console.firebase.google.com &rarr; New project &rarr; Firestore &rarr; Test mode &rarr; Project Settings &rarr; Web app &rarr; copy apiKey + projectId</div>
     <label>Firebase API Key</label><input id="si-apiKey" placeholder="AIzaSy..."/>
@@ -935,7 +938,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div id="sync-bar"><div id="sync-dot"></div><span id="sync-text">Not connected</span></div>
 
 <div id="topbar">
-  <h1>&#128141; Wedding Venues <span style="font-size:10px;font-weight:400;color:var(--text3);vertical-align:middle;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:2px 7px;">v1.0</span></h1>
+  <h1>&#128141; Wedding Venues <span style="font-size:10px;font-weight:400;color:var(--text3);vertical-align:middle;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:2px 7px;">v2</span></h1>
   <button class="filter-btn active" id="filter-all" data-filter="all">All</button>
   <button class="filter-btn" id="filter-starred" data-filter="starred">&#11088; Starred</button>
   <span id="country-filters"></span>
@@ -1174,6 +1177,14 @@ function showSetup(){
   document.getElementById("setup-modal").classList.add("show");
   renderUsageInSettings();
 }
+document.getElementById("setup-close-btn").onclick=function(){
+  // Only allow closing if Firebase is already configured
+  if(getFbCfg()){
+    document.getElementById("setup-modal").classList.remove("show");
+  } else {
+    alert("Please connect Firebase first to use the app.");
+  }
+};
 document.getElementById("setup-save").onclick=function(){
   var apiKey=document.getElementById("si-apiKey").value.trim();
   var projectId=document.getElementById("si-projectId").value.trim();
@@ -1198,7 +1209,7 @@ function callClaude(messages, systemPrompt, onChunk, onDone, onError){
   if(!key){onError("No Anthropic API key. Add it in Settings (gear icon).");return;}
   var body={
     model:"claude-sonnet-4-5",
-    max_tokens:1024,
+    max_tokens:600,
     stream:true,
     tools:[{type:"web_search_20250305",name:"web_search"}],
     messages:messages
@@ -1365,15 +1376,14 @@ function sendGChat(text){
 
   // Add venue context
   var venueList=venues.map(function(v){return v.name+" ("+v.region+")";}).join(", ");
-  var system="You are a helpful wedding planning assistant. The couple is planning a wedding in France or Italy. Their current shortlisted venues are: "+
-    venues.filter(function(v){return shortlist.indexOf(v.id)>=0;}).map(function(v){return v.name;}).join(", ")||"none yet"+
-    ". All venues being considered: "+venueList+". Be warm, helpful, and specific. Use web search to find current, accurate information about venues, pricing, logistics, and recommendations.";
+  var starredNames=venues.filter(function(v){return shortlist.indexOf(v.id)>=0;}).map(function(v){return v.name;}).join(", ")||"none";
+  var system="Wedding planning assistant. Starred venues: "+starredNames+". Be concise. Only search web for current pricing or availability.";
 
   var typingEl=appendGChatMsg("typing","Thinking...");
   var responseEl=null;
 
   callClaude(
-    gchatHistory.slice(-10),
+    gchatHistory.slice(-4),
     system,
     function(chunk,full){
       if(!responseEl){typingEl.remove();responseEl=appendGChatMsg("assistant","");}
@@ -1611,26 +1621,20 @@ function sendVChat(text,venueId){
   if(!v.pricePerGuest)missing.push("price per guest");
   if(!v.airport)missing.push("nearest airport");
 
-  var system="You are a wedding planning assistant for "+v.name+" in "+v.region+". "+
-    "Current details -- capacity: "+(v.capacity||"NOT SET")+
-    ", price per night: "+(v.pricePerNight?"€"+v.pricePerNight:"NOT SET")+
-    ", price per guest: "+(v.pricePerGuest?"€"+v.pricePerGuest:"NOT SET")+
-    ", nearest airport: "+(v.airport||"NOT SET")+
-    ", website: "+(v.website||"unknown")+
-    ", amenities: "+(v.amenities&&v.amenities.length?v.amenities.join(", "):"none set")+". "+
-    (missing.length?"Fields not yet filled in: "+missing.join(", ")+". ":"")+
-    "IMPORTANT: You CAN help update venue details. When you find specific facts, state them clearly so the app can detect and save them automatically. "+
-    "For capacity say e.g. 'accommodates up to 150 guests'. "+
-    "For pricing say e.g. 'venue hire costs €8,000 per night' and '€120 per guest for catering'. "+
-    "For airport say e.g. 'closest airport is Milan Malpensa (MXP), about 45 min drive'. "+
-    "Use web search to find accurate current details. After answering, if you found new data the user can save it using the green buttons that appear below your message.";
-
+  var system="Venue assistant for "+v.name+", "+v.region+". "+
+    "Known: sleeps="+(v.capacity||"?")+
+    ", per night="+(v.pricePerNight?"€"+v.pricePerNight:"?")+
+    ", per guest="+(v.pricePerGuest?"€"+v.pricePerGuest:"?")+
+    ", airport="+(v.airport||"?")+
+    ", amenities="+(v.amenities&&v.amenities.length?v.amenities.join(","):"none")+". "+
+    "State facts clearly with numbers so app can save them. "+
+    "Only web search for pricing/availability - use training knowledge for general info.";
   var typingEl=appendVChatMsg("typing","Searching...",venueId);
   var responseEl=null;
   var msgWrap=null;
 
   callClaude(
-    vchatHistory[venueId].slice(-10),
+    vchatHistory[venueId].slice(-4),
     system,
     function(chunk,full){
       if(!responseEl){
@@ -2177,14 +2181,11 @@ function researchVenue(){
   if(!v.amenities||!v.amenities.length)missing.push('amenities and facilities');
   if(!v.desc)missing.push('description');
 
-  var prompt='Research '+v.name+' wedding venue in '+v.region+'. '+
-    'Find the following specific information: '+missing.join(', ')+'. '+
-    'For each one, state the answer clearly with numbers. '+
-    'Format sleeping capacity as "sleeps up to X guests" or "X bedrooms sleeping X people" - we want to know how many people can stay overnight, not wedding guest count. '+
-    'Format venue pricing as a per-night rate. If the venue quotes a package price for multiple nights (e.g. €33,000 for 2 nights), divide it to get the per-night rate (e.g. €16,500 per night) and state it clearly as "venue hire costs €X per night". Always give the higher/peak season price. '+
-    'Format catering as "catering costs €X per guest". '+
-    'Format airport as "nearest airport is NAME (CODE), approximately X min drive". '+
-    'Be concise and factual. Use web search to find current information from their website or reputable wedding directories.';
+  var prompt='Find these facts about '+v.name+' in '+v.region+': '+missing.join(', ')+'. '+
+    'Be brief. Sleeping capacity = bedrooms/overnight guests only. '+
+    'Pricing = per night rate (divide packages by nights, use peak season). '+
+    'Airport = nearest with code and drive time. '+
+    'State each fact on one line with a number.';
 
   // Use non-streaming fetch so we can extract citation URLs reliably
   // Check cache first - avoid re-searching venues we already researched
