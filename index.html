@@ -693,6 +693,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .setup-card input{width:100%;padding:8px 10px;font-size:13px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg2);color:var(--text);font-family:inherit;}
 #setup-error{font-size:12px;color:#A32D2D;margin-top:6px;min-height:16px;}
 .setup-btns button{width:100%;padding:9px;font-size:13px;border-radius:var(--radius);cursor:pointer;border:none;font-family:inherit;background:var(--purple);color:white;margin-top:14px;}
+.usage-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:13px;}
+.usage-row:last-of-type{border-bottom:none;}
+.usage-cost{font-weight:600;color:var(--purple);margin-top:4px;padding-top:8px;border-top:0.5px solid var(--border2)!important;}
 #setup-edit-btn{position:fixed;bottom:72px;right:12px;background:var(--bg);border:0.5px solid var(--border2);border-radius:20px;padding:6px 12px;font-size:11px;color:var(--text2);cursor:pointer;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.1);-webkit-appearance:none;}
 
 /* SYNC BAR */
@@ -921,13 +924,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <label>Anthropic API Key (AI chat)</label><input id="si-anthkey" type="password" placeholder="sk-ant-..."/>
     <div id="setup-error"></div>
     <div class="setup-btns"><button id="setup-save">Connect &amp; save</button></div>
+    <div style="margin-top:18px;border-top:0.5px solid var(--border);padding-top:14px;">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:8px;">&#128200; API Usage (this device)</div>
+      <div id="usage-stats"><div style="font-size:12px;color:var(--text3);">No usage recorded yet.</div></div>
+      <button onclick="resetUsage()" style="margin-top:10px;padding:6px 12px;font-size:12px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;-webkit-appearance:none;">Reset counter</button>
+    </div>
   </div>
 </div>
 
 <div id="sync-bar"><div id="sync-dot"></div><span id="sync-text">Not connected</span></div>
 
 <div id="topbar">
-  <h1>&#128141; Wedding Venues</h1>
+  <h1>&#128141; Wedding Venues <span style="font-size:10px;font-weight:400;color:var(--text3);vertical-align:middle;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:2px 7px;">v1.0</span></h1>
   <button class="filter-btn active" id="filter-all" data-filter="all">All</button>
   <button class="filter-btn" id="filter-starred" data-filter="starred">&#11088; Starred</button>
   <span id="country-filters"></span>
@@ -1164,6 +1172,7 @@ function showSetup(){
   var gk=getGKey();if(gk)document.getElementById("si-gkey").value=gk;
   var ak=getAnthKey();if(ak)document.getElementById("si-anthkey").value=ak;
   document.getElementById("setup-modal").classList.add("show");
+  renderUsageInSettings();
 }
 document.getElementById("setup-save").onclick=function(){
   var apiKey=document.getElementById("si-apiKey").value.trim();
@@ -1252,6 +1261,62 @@ function callClaude(messages, systemPrompt, onChunk, onDone, onError){
   .catch(onError);
 }
 
+// ── USAGE TRACKING ───────────────────────────────────────────────────────────
+function trackUsage(usage){
+  if(!usage)return;
+  var u;
+  try{u=JSON.parse(localStorage.getItem("wvp_usage")||"{}");}catch(e){u={};}
+  u.inputTokens=(u.inputTokens||0)+(usage.input_tokens||0);
+  u.outputTokens=(u.outputTokens||0)+(usage.output_tokens||0);
+  u.searches=(u.searches||0)+((usage.server_tool_use&&usage.server_tool_use.web_search_requests)||0);
+  u.calls=(u.calls||0)+1;
+  localStorage.setItem("wvp_usage",JSON.stringify(u));
+  renderUsageInSettings();
+}
+function estimateCost(u){
+  if(!u)return 0;
+  var inCost=(u.inputTokens||0)/1e6*3;
+  var outCost=(u.outputTokens||0)/1e6*15;
+  var searchCost=(u.searches||0)/1000*10;
+  return inCost+outCost+searchCost;
+}
+function renderUsageInSettings(){
+  var el=document.getElementById("usage-stats");
+  if(!el)return;
+  var u;
+  try{u=JSON.parse(localStorage.getItem("wvp_usage")||"{}");}catch(e){u={};}
+  var cost=estimateCost(u);
+  el.innerHTML=
+    '<div class="usage-row"><span>API calls</span><span>'+(u.calls||0)+'</span></div>'+
+    '<div class="usage-row"><span>Web searches</span><span>'+(u.searches||0)+'</span></div>'+
+    '<div class="usage-row"><span>Input tokens</span><span>'+((u.inputTokens||0).toLocaleString())+'</span></div>'+
+    '<div class="usage-row"><span>Output tokens</span><span>'+((u.outputTokens||0).toLocaleString())+'</span></div>'+
+    '<div class="usage-row usage-cost"><span>Est. cost</span><span>~$'+cost.toFixed(3)+'</span></div>'+
+    '<div style="font-size:11px;color:var(--text3);margin-top:6px;">Rough estimate only. Check <a href="https://console.anthropic.com" target="_blank" style="color:var(--blue);">console.anthropic.com</a> for real billing.</div>';
+}
+function resetUsage(){
+  if(!confirm("Reset usage counter?"))return;
+  localStorage.removeItem("wvp_usage");
+  renderUsageInSettings();
+}
+
+// ── VENUE RESEARCH CACHE ──────────────────────────────────────────────────────
+// Cache research results per venue so we don't re-search the same venue twice
+var researchCache={};
+
+function getResearchCache(venueId){
+  if(researchCache[venueId])return researchCache[venueId];
+  try{
+    var stored=localStorage.getItem("wvp_research_"+venueId);
+    if(stored){researchCache[venueId]=JSON.parse(stored);return researchCache[venueId];}
+  }catch(e){}
+  return null;
+}
+function setResearchCache(venueId, data){
+  researchCache[venueId]=data;
+  try{localStorage.setItem("wvp_research_"+venueId,JSON.stringify(data));}catch(e){}
+}
+
 // ── GLOBAL CHAT ───────────────────────────────────────────────────────────────
 var gchatHistory=[];
 var gchatTyping=false;
@@ -1320,6 +1385,7 @@ function sendGChat(text){
       gchatHistory.push({role:"assistant",content:full});
       gchatTyping=false;
       document.getElementById("gchat-send").disabled=false;
+      trackUsage({input_tokens:Math.round((JSON.stringify(gchatHistory).length)/4),output_tokens:Math.round(full.length/4),server_tool_use:{web_search_requests:1}});
     },
     function(err){
       typingEl.remove();
@@ -1585,6 +1651,7 @@ function sendVChat(text,venueId){
       vchatHistory[venueId].push({role:"assistant",content:full});
       vchatTyping=false;
       document.getElementById("vchat-send").disabled=false;
+      trackUsage({input_tokens:Math.round((JSON.stringify(vchatHistory[venueId]).length)/4),output_tokens:Math.round(full.length/4),server_tool_use:{web_search_requests:1}});
       // Parse response for extractable venue data and show update buttons + sources
       var updates=parseVenueUpdates(full,v);
       var hasSources=sources&&sources.length>0;
@@ -2120,6 +2187,19 @@ function researchVenue(){
     'Be concise and factual. Use web search to find current information from their website or reputable wedding directories.';
 
   // Use non-streaming fetch so we can extract citation URLs reliably
+  // Check cache first - avoid re-searching venues we already researched
+  var cached=getResearchCache(selectedId);
+  if(cached){
+    btn.disabled=false;
+    btn.innerHTML="&#128269; Research missing fields with Claude";
+    var cachedWrap=document.createElement("div");
+    cachedWrap.style.cssText="background:var(--bg2);border-radius:var(--radius);border:0.5px solid var(--border);padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.55;margin-bottom:8px;";
+    cachedWrap.innerHTML='<span style="color:var(--text3);font-size:10px;">&#128204; Cached result (no API call used)</span><br/><br/>'+esc(cached.text);
+    resultsEl.appendChild(cachedWrap);
+    renderUpdateButtons(parseVenueUpdates(cached.text,v),selectedId,resultsEl,cached.sources||[]);
+    return;
+  }
+
   var anthKey=getAnthKey();
   fetch("https://api.anthropic.com/v1/messages",{
     method:"POST",
@@ -2141,6 +2221,7 @@ function researchVenue(){
     btn.disabled=false;
     btn.innerHTML="&#128269; Research missing fields with Claude";
     if(data.error)throw new Error(data.error.message||"API error");
+    trackUsage(data.usage);
 
     // Extract text from content blocks
     var full=(data.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("");
@@ -2169,6 +2250,8 @@ function researchVenue(){
       }
     }
 
+    // Cache the result so we don't re-search this venue
+    setResearchCache(selectedId,{text:full,sources:sources,timestamp:Date.now()});
     // Show result
     var updates=parseVenueUpdates(full,v);
     var wrap=document.createElement("div");
