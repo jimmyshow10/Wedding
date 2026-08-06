@@ -862,6 +862,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .bp-stat-val.green{color:var(--green);}
 
 /* GLOBAL CHAT */
+/* LIST PANEL */
+#list-panel{display:none;flex-direction:column;overflow:hidden;background:var(--bg);position:absolute;inset:0;z-index:10;}
+#list-panel.show{display:flex;}
+.list-header{padding:10px 14px;border-bottom:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:8px;background:var(--bg);}
+.list-header h3{font-size:14px;font-weight:600;flex:1;}
+.list-close{background:none;border:none;cursor:pointer;font-size:16px;color:var(--text2);-webkit-appearance:none;padding:4px 8px;}
+.list-search{padding:8px 14px;border-bottom:0.5px solid var(--border);flex-shrink:0;}
+.list-search input{width:100%;padding:8px 12px;font-size:13px;border-radius:20px;border:0.5px solid var(--border2);background:var(--bg2);color:var(--text);font-family:inherit;}
+.list-filters{display:flex;gap:6px;padding:8px 14px;border-bottom:0.5px solid var(--border);flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.list-filters::-webkit-scrollbar{display:none;}
+.lf-btn{padding:4px 11px;font-size:12px;border-radius:20px;border:0.5px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;white-space:nowrap;flex-shrink:0;-webkit-appearance:none;}
+.lf-btn.active{background:var(--purple);color:var(--purple-light);border-color:var(--purple);}
+#venue-list-items{flex:1;overflow-y:auto;}
+.venue-list-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .12s;}
+.venue-list-row:hover,.venue-list-row:active{background:var(--bg2);}
+.vlr-emoji{font-size:22px;flex-shrink:0;width:32px;text-align:center;}
+.vlr-info{flex:1;min-width:0;}
+.vlr-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vlr-sub{font-size:11px;color:var(--text2);margin-top:1px;}
+.vlr-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;}
+.vlr-badge{font-size:10px;padding:2px 7px;border-radius:20px;}
+.vlr-fav{font-size:14px;color:var(--gold);}
+.list-empty{padding:40px 20px;text-align:center;color:var(--text3);font-size:13px;}
+
 #gchat-btn{position:fixed;bottom:12px;right:12px;width:50px;height:50px;border-radius:50%;background:var(--purple);color:white;border:none;cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(60,52,137,.4);z-index:200;-webkit-appearance:none;}
 #gchat-panel{display:none;position:fixed;bottom:72px;right:12px;width:340px;max-height:520px;background:var(--bg);border-radius:var(--radius-lg);border:0.5px solid var(--border2);box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:200;flex-direction:column;overflow:hidden;}
 #gchat-panel.show{display:flex;}
@@ -932,16 +956,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div id="usage-stats"><div style="font-size:12px;color:var(--text3);">No usage recorded yet.</div></div>
       <button onclick="resetUsage()" style="margin-top:10px;padding:6px 12px;font-size:12px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;-webkit-appearance:none;">Reset counter</button>
     </div>
+    <div style="margin-top:14px;border-top:0.5px solid var(--border);padding-top:14px;">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:10px;">&#9881; Preferences</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:13px;font-weight:500;">Delete confirmation</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">Show popup when deleting a venue</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;margin-left:12px;cursor:pointer;">
+          <input type="checkbox" id="delete-confirm-toggle" style="opacity:0;width:0;height:0;" onchange="setDeleteConfirm(this.checked)"/>
+          <span id="toggle-track" style="position:absolute;inset:0;background:#ccc;border-radius:24px;transition:.25s;"></span>
+          <span id="toggle-thumb" style="position:absolute;height:18px;width:18px;left:3px;top:3px;background:white;border-radius:50%;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.25);"></span>
+        </label>
+      </div>
+    </div>
   </div>
 </div>
 
 <div id="sync-bar"><div id="sync-dot"></div><span id="sync-text">Not connected</span></div>
 
 <div id="topbar">
-  <h1>&#128141; Wedding Venues <span style="font-size:10px;font-weight:400;color:var(--text3);vertical-align:middle;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:2px 7px;">v3</span></h1>
+  <h1>&#128141; Wedding Venues <span style="font-size:10px;font-weight:400;color:var(--text3);vertical-align:middle;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:2px 7px;">v4</span></h1>
   <button class="filter-btn active" id="filter-all" data-filter="all">All</button>
-  <button class="filter-btn" id="filter-starred" data-filter="starred">&#11088; Starred</button>
+  <button class="filter-btn" id="filter-starred" data-filter="starred">&#10084; Favorites</button>
   <span id="country-filters"></span>
+  <button class="tab-btn" id="list-tab">&#128205; List</button>
   <button class="tab-btn" id="budget-tab">&#128182; Budget</button>
   <button id="add-btn">+ Add venue</button>
 </div>
@@ -954,7 +993,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div id="photo-carousel"><div class="ph-placeholder"><span>&#127968;</span><div>Click a venue pin to view</div></div></div>
       <div class="v-hero-btns">
         <div class="vhb-left">
-          <button class="hero-btn" id="star-btn">&#9734; Star</button>
+          <button class="hero-btn" id="star-btn">&#9825; Favorite</button>
           <button class="hero-btn edit-btn-style" id="edit-btn">&#9998; Edit</button>
         </div>
         <div class="vhb-right">
@@ -1031,9 +1070,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="slider-row"><label>Nights</label><input type="range" id="bp-nights" min="1" max="7" value="2"/><span class="slider-val" id="bp-nights-val">2 nights</span></div>
       <div class="slider-row"><label>Guests</label><input type="range" id="bp-guests" min="20" max="300" step="10" value="80"/><span class="slider-val" id="bp-guests-val">80 guests</span></div>
     </div>
-    <div id="bp-empty" class="bp-empty"><div class="bp-empty-icon">&#11088;</div><div>Star venues to see estimates here</div></div>
+    <div id="bp-empty" class="bp-empty"><div class="bp-empty-icon">&#11088;</div><div>Favorite venues to see estimates here</div></div>
     <div id="bp-cards" style="display:none"></div>
   </div>
+</div>
+
+<!-- VENUE LIST PANEL -->
+<div id="list-panel">
+  <div class="list-header">
+    <h3>&#128205; All Venues</h3>
+    <button class="list-close" id="list-close">&#10005; Close</button>
+  </div>
+  <div class="list-search">
+    <input id="list-search-input" placeholder="Search venues..." oninput="renderVenueList()"/>
+  </div>
+  <div class="list-filters" id="list-filters">
+    <button class="lf-btn active" data-lfilter="all">All</button>
+    <button class="lf-btn" data-lfilter="starred">&#10084; Favorites</button>
+  </div>
+  <div id="venue-list-items"></div>
 </div>
 
 <!-- GLOBAL CHAT -->
@@ -1152,6 +1207,7 @@ function startSync(){
     if(data){venues=data.venues||JSON.parse(JSON.stringify(DEFAULT_VENUES));notes=data.notes||{};shortlist=data.shortlist||[];}
     else{venues=JSON.parse(JSON.stringify(DEFAULT_VENUES));notes={};shortlist=[];pushToFirebase();}
     rebuildMap();
+    renderVenueList();
     if(selectedId){var v=venues.filter(function(x){return x.id===selectedId;})[0];if(v)refreshSidebarData(v);}
     setSyncStatus("connected","Synced");
   },function(err){setSyncStatus("error","Sync error");console.error(err);});
@@ -1176,6 +1232,7 @@ function showSetup(){
   var ak=getAnthKey();if(ak)document.getElementById("si-anthkey").value=ak;
   document.getElementById("setup-modal").classList.add("show");
   renderUsageInSettings();
+  syncToggleUI();
 }
 document.getElementById("setup-close-btn").onclick=function(){
   // Only allow closing if Firebase is already configured
@@ -1270,6 +1327,20 @@ function callClaude(messages, systemPrompt, onChunk, onDone, onError){
     pump();
   })
   .catch(onError);
+}
+
+// ── DELETE CONFIRMATION TOGGLE ───────────────────────────────────────────────
+function getDeleteConfirm(){try{return getCfg().deleteConfirm!==false;}catch(e){return true;}}
+function setDeleteConfirm(val){var c=getCfg();c.deleteConfirm=val;setCfg(c);syncToggleUI();}
+function syncToggleUI(){
+  var chk=document.getElementById("delete-confirm-toggle");
+  var track=document.getElementById("toggle-track");
+  var thumb=document.getElementById("toggle-thumb");
+  if(!chk)return;
+  var on=getDeleteConfirm();
+  chk.checked=on;
+  if(track)track.style.background=on?"#3C3489":"#ccc";
+  if(thumb)thumb.style.transform=on?"translateX(18px)":"translateX(0)";
 }
 
 // ── USAGE TRACKING ───────────────────────────────────────────────────────────
@@ -1887,7 +1958,7 @@ function refreshSidebarData(v){
   document.getElementById("v-amenities").innerHTML=(v.amenities||[]).map(function(a){return '<span class="amenity-tag">'+esc(a)+'</span>';}).join("");
   document.getElementById("v-notes").value=notes[v.id]||"";
   var isStarred=shortlist.indexOf(v.id)>=0;
-  var sb=document.getElementById("star-btn");sb.textContent=isStarred?"\u2605 Starred":"\u2606 Star";sb.classList.toggle("starred",isStarred);
+  var sb=document.getElementById("star-btn");sb.textContent=isStarred?"\u2665 Favorited":"\u2661 Favorite";sb.classList.toggle("starred",isStarred);
   buildContactPanel(v);
   // Init venue chat
   initVenueChat(v);
@@ -1916,7 +1987,7 @@ document.getElementById("star-btn").onclick=function(){
   if(!selectedId)return;
   var i=shortlist.indexOf(selectedId);if(i>=0)shortlist.splice(i,1);else shortlist.push(selectedId);
   var isStarred=shortlist.indexOf(selectedId)>=0;
-  var sb=document.getElementById("star-btn");sb.textContent=isStarred?"\u2605 Starred":"\u2606 Star";sb.classList.toggle("starred",isStarred);
+  var sb=document.getElementById("star-btn");sb.textContent=isStarred?"\u2665 Favorited":"\u2661 Favorite";sb.classList.toggle("starred",isStarred);
   var v=venues.filter(function(x){return x.id===selectedId;})[0];
   if(v&&venueMarkers[selectedId])venueMarkers[selectedId].setIcon(makeVenueIcon(v.emoji,v.country,isStarred));
   // If in starred filter and just unstarred, hide the pin and close sidebar
@@ -1936,15 +2007,17 @@ document.getElementById("delete-btn").onclick=function(){
   if(!selectedId)return;
   var v=venues.filter(function(x){return x.id===selectedId;})[0];
   if(!v)return;
+  function doDelete(id){
+    var m=venueMarkers[id];if(m&&map.hasLayer(m))map.removeLayer(m);delete venueMarkers[id];
+    venues=venues.filter(function(x){return x.id!==id;});delete notes[id];
+    var si=shortlist.indexOf(id);if(si>=0)shortlist.splice(si,1);
+    closeSidebar();pushToFirebase();renderVenueList();
+  }
+  if(!getDeleteConfirm()){doDelete(selectedId);return;}
   var ol=document.createElement("div");ol.className="confirm-overlay";
   ol.innerHTML='<div class="confirm-card"><p>Remove <strong>'+esc(v.name)+'</strong>?</p><div class="confirm-btns"><button class="cd-cancel">Keep it</button><button class="cd-confirm">Yes, delete</button></div></div>';
   ol.querySelector(".cd-cancel").onclick=function(){ol.remove();};
-  ol.querySelector(".cd-confirm").onclick=function(){
-    var m=venueMarkers[selectedId];if(m&&map.hasLayer(m))map.removeLayer(m);delete venueMarkers[selectedId];
-    venues=venues.filter(function(x){return x.id!==selectedId;});delete notes[selectedId];
-    var si=shortlist.indexOf(selectedId);if(si>=0)shortlist.splice(si,1);
-    closeSidebar();pushToFirebase();ol.remove();
-  };
+  ol.querySelector(".cd-confirm").onclick=function(){doDelete(selectedId);ol.remove();};
   document.body.appendChild(ol);
 };
 document.getElementById("save-note-btn").onclick=function(){
@@ -2145,6 +2218,11 @@ function scanVenue(){
 function saveVenue(){
   var name=document.getElementById("f-name").value.trim();
   if(!name){alert("Please enter a venue name.");return;}
+  if(!editingId){
+    var nameLower=name.toLowerCase();
+    var dup=venues.filter(function(v){return v.name.toLowerCase()===nameLower;})[0];
+    if(dup){if(!confirm('"'+name+'" is already on your map. Add it again anyway?'))return;}
+  }
   var country=(document.getElementById("f-country").value||"FR").toUpperCase().trim().slice(0,2);
   var lat=window._lat||(country==="FR"?44+Math.random()*4:42+Math.random()*4);
   var lng=window._lng||(country==="FR"?1+Math.random()*6:10+Math.random()*5);
@@ -2289,6 +2367,114 @@ function updateResearchBar(v){
   }
   if(results)results.innerHTML="";
 }
+
+// ── VENUE LIST ────────────────────────────────────────────────────────────────
+var listFilter="all";
+
+function buildListFilters(){
+  var container=document.getElementById("list-filters");
+  if(!container)return;
+  // Remove old country buttons, keep All and Favorites
+  Array.from(container.querySelectorAll(".lf-btn")).forEach(function(b){
+    if(b.dataset.lfilter!=="all"&&b.dataset.lfilter!=="starred")b.remove();
+  });
+  var countries=[];
+  venues.forEach(function(v){if(v.country&&countries.indexOf(v.country)<0)countries.push(v.country);});
+  countries.sort();
+  countries.forEach(function(code){
+    if(container.querySelector('[data-lfilter="'+code+'"]'))return;
+    var meta=getCountryMeta(code);
+    var btn=document.createElement("button");
+    btn.className="lf-btn";
+    btn.dataset.lfilter=code;
+    btn.textContent=meta.flag+" "+meta.name;
+    btn.onclick=function(){setListFilter(code);};
+    container.appendChild(btn);
+  });
+}
+
+function setListFilter(f){
+  listFilter=f;
+  document.querySelectorAll(".lf-btn").forEach(function(b){b.classList.toggle("active",b.dataset.lfilter===f);});
+  renderVenueList();
+}
+
+function renderVenueList(){
+  buildListFilters();
+  var q=(document.getElementById("list-search-input")||{}).value||"";
+  q=q.toLowerCase().trim();
+  var filtered=venues.filter(function(v){
+    if(listFilter==="starred"&&shortlist.indexOf(v.id)<0)return false;
+    if(listFilter!=="all"&&listFilter!=="starred"&&v.country!==listFilter)return false;
+    if(q&&v.name.toLowerCase().indexOf(q)<0&&(v.region||"").toLowerCase().indexOf(q)<0)return false;
+    return true;
+  });
+  // Sort alphabetically
+  filtered=filtered.slice().sort(function(a,b){return a.name.localeCompare(b.name);});
+  var container=document.getElementById("venue-list-items");
+  if(!container)return;
+  if(!filtered.length){
+    container.innerHTML='<div class="list-empty">No venues match your search.</div>';
+    return;
+  }
+  var html="";
+  filtered.forEach(function(v){
+    var isFav=shortlist.indexOf(v.id)>=0;
+    var meta=getCountryMeta(v.country);
+    var priceStr=v.pricePerNight?"€"+Number(v.pricePerNight).toLocaleString()+"/night":"";
+    var sleepsStr=v.capacity?v.capacity:"";
+    var sub=[meta.flag+" "+meta.name,sleepsStr,priceStr].filter(Boolean).join(" · ");
+    html+='<div class="venue-list-row" onclick="openVenueFromList('+v.id+')">';
+    html+='<div class="vlr-emoji">'+v.emoji+'</div>';
+    html+='<div class="vlr-info"><div class="vlr-name">'+esc(v.name)+'</div><div class="vlr-sub">'+esc(sub)+'</div></div>';
+    html+='<div class="vlr-right">';
+    if(isFav)html+='<div class="vlr-fav">&#9829;</div>';
+    html+='</div>';
+    html+='</div>';
+  });
+  container.innerHTML=html;
+}
+
+function openVenueFromList(venueId){
+  var v=venues.filter(function(x){return x.id===venueId;})[0];
+  if(!v)return;
+  // Close list panel, open sidebar
+  document.getElementById("list-panel").classList.remove("show");
+  document.getElementById("list-tab").classList.remove("active");
+  setTimeout(function(){
+    map.invalidateSize();
+    map.flyTo([v.lat,v.lng],10,{animate:true,duration:0.8});
+    openSidebar(v,"info");
+  },100);
+}
+
+document.getElementById("list-tab").onclick=function(){
+  var panel=document.getElementById("list-panel");
+  var isOpen=panel.classList.contains("show");
+  // Close budget if open
+  document.getElementById("budget-panel").classList.remove("show");
+  document.getElementById("budget-tab").classList.remove("active");
+  if(isOpen){
+    panel.classList.remove("show");
+    this.classList.remove("active");
+    setTimeout(function(){if(map)map.invalidateSize();},50);
+  } else {
+    panel.classList.add("show");
+    this.classList.add("active");
+    renderVenueList();
+  }
+};
+
+document.getElementById("list-close").onclick=function(){
+  document.getElementById("list-panel").classList.remove("show");
+  document.getElementById("list-tab").classList.remove("active");
+  setTimeout(function(){if(map)map.invalidateSize();},50);
+};
+
+// Wire up list filter buttons (static ones)
+document.querySelectorAll(".lf-btn").forEach(function(b){
+  b.onclick=function(){setListFilter(b.dataset.lfilter);};
+});
 
 window.addEventListener("load",function(){
   initMap();
