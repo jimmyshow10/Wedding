@@ -976,7 +976,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div id="sync-bar"><div id="sync-dot"></div><span id="sync-text">Not connected</span></div>
 
 <div id="topbar">
-  <h1>&#128141; Wedding Venues <span style="font-size:10px;font-weight:400;color:var(--text3);vertical-align:middle;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:2px 7px;">v4</span></h1>
+  <h1>&#128141; Wedding Venues <span style="font-size:10px;font-weight:400;color:var(--text3);vertical-align:middle;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:2px 7px;">v5</span></h1>
   <button class="filter-btn active" id="filter-all" data-filter="all">All</button>
   <button class="filter-btn" id="filter-starred" data-filter="starred">&#10084; Favorites</button>
   <span id="country-filters"></span>
@@ -1079,7 +1079,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div id="list-panel">
   <div class="list-header">
     <h3>&#128205; All Venues</h3>
-    <button class="list-close" id="list-close">&#10005; Close</button>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button id="export-btn" style="padding:5px 11px;font-size:12px;border-radius:20px;border:0.5px solid #A8D47A;background:var(--green-light);color:#27500A;cursor:pointer;-webkit-appearance:none;white-space:nowrap;">&#11015; Export</button>
+      <button class="list-close" id="list-close">&#10005; Close</button>
+    </div>
   </div>
   <div class="list-search">
     <input id="list-search-input" placeholder="Search venues..." oninput="renderVenueList()"/>
@@ -2368,6 +2371,82 @@ function updateResearchBar(v){
   if(results)results.innerHTML="";
 }
 
+// ── EXPORT TO CSV (Excel compatible) ─────────────────────────────────────────
+function exportVenues(){
+  // Determine which venues to export based on current list filter
+  var toExport=venues.filter(function(v){
+    if(listFilter==="starred")return shortlist.indexOf(v.id)>=0;
+    if(listFilter!=="all")return v.country===listFilter;
+    return true;
+  });
+
+  if(!toExport.length){alert("No venues to export with the current filter.");return;}
+
+  var cols=[
+    "Name","Country","Region","Favorited",
+    "Sleeps (overnight)","Price per Night (EUR)","Price per Guest (EUR)",
+    "Estimated Total (2 nights, 50 guests)",
+    "Nearest Airport",
+    "Amenities","Description",
+    "Website","Phone","Email","Instagram",
+    "Your Notes","Google Maps Link"
+  ];
+
+  function csvCell(val){
+    if(val===null||val===undefined)return "";
+    var s=String(val);
+    // Escape double quotes, wrap in quotes if contains comma/newline/quote
+    if(s.indexOf(",")>=0||s.indexOf("
+")>=0||s.indexOf('"')>=0){
+      s='"'+s.replace(/"/g,'""')+'"';
+    }
+    return s;
+  }
+
+  var rows=[cols.map(csvCell).join(",")];
+
+  toExport.forEach(function(v){
+    var isFav=shortlist.indexOf(v.id)>=0?"Yes":"No";
+    var ppn=v.pricePerNight||0;
+    var ppg=v.pricePerGuest||0;
+    var estTotal=ppn*2+ppg*50; // 2 nights, 50 guests as a default estimate
+    var mapsUrl="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(v.name+" "+v.region);
+    var row=[
+      v.name,
+      getCountryMeta(v.country).name,
+      v.region,
+      isFav,
+      v.capacity||"",
+      ppn||"",
+      ppg||"",
+      estTotal||"",
+      v.airport||"",
+      (v.amenities||[]).join("; "),
+      v.desc||"",
+      v.website||"",
+      v.phone||"",
+      v.email||"",
+      v.instagram||"",
+      notes[v.id]||"",
+      mapsUrl
+    ];
+    rows.push(row.map(csvCell).join(","));
+  });
+
+  var csv="﻿"+rows.join("
+"); // BOM for Excel UTF-8 detection
+  var blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  a.href=url;
+  var filterLabel=listFilter==="all"?"All":(listFilter==="starred"?"Favorites":getCountryMeta(listFilter).name);
+  a.download="Wedding Venues - "+filterLabel+" - "+new Date().toISOString().slice(0,10)+".csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ── VENUE LIST ────────────────────────────────────────────────────────────────
 var listFilter="all";
 
@@ -2470,6 +2549,7 @@ document.getElementById("list-close").onclick=function(){
   document.getElementById("list-tab").classList.remove("active");
   setTimeout(function(){if(map)map.invalidateSize();},50);
 };
+document.getElementById("export-btn").onclick=exportVenues;
 
 // Wire up list filter buttons (static ones)
 document.querySelectorAll(".lf-btn").forEach(function(b){
