@@ -976,7 +976,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div id="sync-bar"><div id="sync-dot"></div><span id="sync-text">Not connected</span></div>
 
 <div id="topbar">
-  <h1>&#128141; Wedding Venues <span style="font-size:10px;font-weight:400;color:var(--text3);vertical-align:middle;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:2px 7px;">v5</span></h1>
+  <h1>&#128141; Wedding Venues <span style="font-size:10px;font-weight:400;color:var(--text3);vertical-align:middle;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:2px 7px;">v6</span></h1>
   <button class="filter-btn active" id="filter-all" data-filter="all">All</button>
   <button class="filter-btn" id="filter-starred" data-filter="starred">&#10084; Favorites</button>
   <span id="country-filters"></span>
@@ -1079,6 +1079,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div id="list-panel">
   <div class="list-header">
     <h3>&#128205; All Venues</h3>
+    <button id="export-btn" style="padding:5px 11px;font-size:12px;border-radius:20px;border:0.5px solid #A8D47A;background:var(--green-light);color:#27500A;cursor:pointer;-webkit-appearance:none;">&#11015; Export</button>
     <button class="list-close" id="list-close">&#10005; Close</button>
   </div>
   <div class="list-search">
@@ -2469,6 +2470,41 @@ document.getElementById("list-close").onclick=function(){
   document.getElementById("list-panel").classList.remove("show");
   document.getElementById("list-tab").classList.remove("active");
   setTimeout(function(){if(map)map.invalidateSize();},50);
+};
+document.getElementById("export-btn").onclick=function(){
+  var toExport=venues.filter(function(v){
+    if(listFilter==="starred")return shortlist.indexOf(v.id)>=0;
+    if(listFilter!=="all")return v.country===listFilter;
+    return true;
+  });
+  if(!toExport.length){alert("No venues to export.");return;}
+  function cell(v){
+    if(v===null||v===undefined)return "";
+    var s=String(v);
+    if(s.indexOf(",")>=0||s.indexOf("
+")>=0||s.indexOf('"')>=0)s='"'+s.replace(/"/g,'""')+'"';
+    return s;
+  }
+  var cols=["Name","Country","Region","Favorited","Sleeps","Price/Night (EUR)","Price/Guest (EUR)","Est. Total (2nts x 50 guests)","Nearest Airport","Amenities","Description","Website","Phone","Email","Instagram","Your Notes","Google Maps Link"];
+  var rows=[cols.map(cell).join(",")];
+  toExport.forEach(function(venue){
+    var ppn=venue.pricePerNight||0,ppg=venue.pricePerGuest||0;
+    var mapurl="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(venue.name+" "+venue.region);
+    rows.push([venue.name,getCountryMeta(venue.country).name,venue.region,
+      shortlist.indexOf(venue.id)>=0?"Yes":"No",
+      venue.capacity||"",ppn||"",ppg||"",ppn*2+ppg*50||"",venue.airport||"",
+      (venue.amenities||[]).join("; "),venue.desc||"",
+      venue.website||"",venue.phone||"",venue.email||"",venue.instagram||"",
+      notes[venue.id]||"",mapurl].map(cell).join(","));
+  });
+  var blob=new Blob(["﻿"+rows.join("
+")],{type:"text/csv;charset=utf-8;"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  a.href=url;
+  var lbl=listFilter==="all"?"All":(listFilter==="starred"?"Favorites":getCountryMeta(listFilter).name);
+  a.download="Wedding Venues - "+lbl+" - "+new Date().toISOString().slice(0,10)+".csv";
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 };
 
 // Wire up list filter buttons (static ones)
